@@ -1,7 +1,19 @@
+/**
+ * Copyright 2013-2015 Pierre Merienne
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 		http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.github.pmerienne.trident.cf;
-
-import com.github.pmerienne.trident.cf.model.Average;
-import com.github.pmerienne.trident.cf.model.RatingAverages;
 
 import storm.trident.Stream;
 import storm.trident.TridentState;
@@ -9,14 +21,19 @@ import storm.trident.state.StateFactory;
 import backtype.storm.Config;
 import backtype.storm.tuple.Fields;
 
+import com.github.pmerienne.trident.cf.model.RecommendedItem;
+import com.github.pmerienne.trident.cf.model.WeightedRating;
+import com.github.pmerienne.trident.cf.model.WeightedRatings;
+
 public class CFTopology {
 
 	public final static String DEFAULT_USER1_FIELD = "user1";
 	public final static String DEFAULT_USER2_FIELD = "user2";
 	public final static String DEFAULT_ITEM_FIELD = "item";
 	public final static String DEFAULT_RATING_FIELD = "rating";
-	public final static String DEFAULT_SIMILARITY_FIELD = "rating";
-	public final static String DEFAULT_RECOMMENDED_ITEMS_FIELD = "recommended_items_ratings";
+	public final static String DEFAULT_SIMILARITY_FIELD = "similarity";
+	public static String DEFAULT_RECOMMENDED_ITEMS_FIELD = "recommended_items_ratings";
+	public final static int DEFAULT_NEIGHBOTHOOD_SIZE = 10;
 
 	private final static String USER1_FIELD = "user1";
 	private final static String USER2_FIELD = "user2";
@@ -75,8 +92,9 @@ public class CFTopology {
 	}
 
 	public void configure(Config config) {
-		config.registerSerialization(RatingAverages.class);
-		config.registerSerialization(Average.class);
+		config.registerSerialization(WeightedRating.class);
+		config.registerSerialization(WeightedRatings.class);
+		config.registerSerialization(RecommendedItem.class);
 	}
 
 	private void initRatingTopology() {
@@ -106,22 +124,25 @@ public class CFTopology {
 		return inputStream.stateQuery(this.cfState, new Fields(user1Field, user2Field), new UserSimilarityQuery(), new Fields(similarityField)).project(new Fields(similarityField));
 	}
 
-	public Stream createRecommendationStream(Stream inputStream) {
-		return this.createRecommendationStream(inputStream, DEFAULT_USER1_FIELD, DEFAULT_RECOMMENDED_ITEMS_FIELD);
+	public Stream createRecommendationStream(Stream inputStream, int nbItems) {
+		return this.createRecommendationStream(inputStream, nbItems, DEFAULT_NEIGHBOTHOOD_SIZE, DEFAULT_USER1_FIELD, DEFAULT_RECOMMENDED_ITEMS_FIELD);
 	}
 
-	public Stream createRecommendationStream(Stream inputStream, String userField, String recommendedItemField) {
+	public Stream createRecommendationStream(Stream inputStream, int nbItems, int neighborhoodSize) {
+		return this.createRecommendationStream(inputStream, nbItems, neighborhoodSize, DEFAULT_USER1_FIELD, DEFAULT_RECOMMENDED_ITEMS_FIELD);
+	}
+
+	public Stream createRecommendationStream(Stream inputStream, int nbItems, int neighborhoodSize, String userField, String recommendedItemField) {
 		return inputStream
 		// Get user1 ratings
 				.stateQuery(this.cfState, new Fields(userField), new UserRatingsQuery(), new Fields(USER1_RATINGS_FIELD))
 				// Get all similar users
-				.stateQuery(this.cfState, new Fields(userField), new FetchSimilarUsers(), new Fields(USER2_FIELD))
+				.stateQuery(this.cfState, new Fields(userField), new FetchSimilarUsers(neighborhoodSize), new Fields(USER2_FIELD, DEFAULT_SIMILARITY_FIELD))
 				// Get similar users ratings
 				.stateQuery(this.cfState, new Fields(USER2_FIELD), new UserRatingsQuery(), new Fields(USER2_RATINGS_FIELD))
 				// Average unrated ratings
-				.aggregate(new Fields(USER1_RATINGS_FIELD, USER2_RATINGS_FIELD), new UnratedItemsCombiner(), new Fields(RATING_AVERAGES_FIELD))
+				.aggregate(new Fields(USER1_RATINGS_FIELD, USER2_RATINGS_FIELD, DEFAULT_SIMILARITY_FIELD), new UnratedItemsCombiner(), new Fields(RATING_AVERAGES_FIELD))
 				// Convert to recommended item
-				.each(new Fields(RATING_AVERAGES_FIELD), new RatingAveragesToRecommendedItems(), new Fields(recommendedItemField)).project(new Fields(recommendedItemField));
+				.each(new Fields(RATING_AVERAGES_FIELD), new TopNRecommendedItems(nbItems), new Fields(recommendedItemField)).project(new Fields(recommendedItemField));
 	}
-
 }

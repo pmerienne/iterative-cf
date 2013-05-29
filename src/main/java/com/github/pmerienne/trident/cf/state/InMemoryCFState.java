@@ -1,3 +1,18 @@
+/**
+ * Copyright 2013-2015 Pierre Merienne
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 		http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.github.pmerienne.trident.cf.state;
 
 import java.util.ArrayList;
@@ -14,6 +29,8 @@ import java.util.Set;
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
 import backtype.storm.task.IMetricsContext;
+
+import com.github.pmerienne.trident.cf.model.SimilarUser;
 
 public class InMemoryCFState implements CFState {
 
@@ -46,7 +63,7 @@ public class InMemoryCFState implements CFState {
 	}
 
 	@Override
-	public Set<Long> getMostSimilarUsers(long user1, int count) {
+	public Set<SimilarUser> getMostSimilarUsers(long user1, int count) {
 		// Inspired from
 		// org.apache.mahout.cf.taste.impl.recommender.TopItems.topUsers()
 		Queue<SimilarUser> topUsers = new PriorityQueue<SimilarUser>(count + 1, Collections.reverseOrder());
@@ -71,17 +88,13 @@ public class InMemoryCFState implements CFState {
 
 		int size = topUsers.size();
 		if (size == 0) {
-			return new HashSet<Long>();
+			return new HashSet<SimilarUser>();
 		}
 
-		List<SimilarUser> sorted = new ArrayList<SimilarUser>(size);
-		sorted.addAll(topUsers);
+		List<SimilarUser> sorted = new ArrayList<SimilarUser>(topUsers);
 		Collections.sort(sorted);
+		Set<SimilarUser> result = new HashSet<SimilarUser>(sorted);
 
-		Set<Long> result = new HashSet<Long>(size);
-		for (SimilarUser similarUser : sorted) {
-			result.add(similarUser.user);
-		}
 		return result;
 	}
 
@@ -91,7 +104,12 @@ public class InMemoryCFState implements CFState {
 	}
 
 	@Override
-	public long getRatedItemCount(long user) {
+	public long userCount() {
+		return this.users.size();
+	}
+
+	@Override
+	public long getM(long user) {
 		Long ratedItemCount = this.ms.get(user);
 		if (ratedItemCount == null) {
 			ratedItemCount = 0L;
@@ -100,7 +118,7 @@ public class InMemoryCFState implements CFState {
 	}
 
 	@Override
-	public void setRatedItemCount(long user, long count) {
+	public void setM(long user, long count) {
 		this.ms.put(user, count);
 	}
 
@@ -273,6 +291,11 @@ public class InMemoryCFState implements CFState {
 			return true;
 		}
 
+		@Override
+		public String toString() {
+			return "UserPair [user1=" + user1 + ", user2=" + user2 + "]";
+		}
+
 	}
 
 	private static class Pair<L> {
@@ -316,76 +339,12 @@ public class InMemoryCFState implements CFState {
 				return false;
 			return true;
 		}
-	}
-
-	public static class SimilarUser implements Comparable<SimilarUser> {
-
-		private final long user;
-		private final double similarity;
-
-		public SimilarUser(long user, double similarity) {
-			this.user = user;
-			this.similarity = similarity;
-		}
-
-		public long getUser() {
-			return user;
-		}
-
-		public double getSimilarity() {
-			return similarity;
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			long temp;
-			temp = Double.doubleToLongBits(similarity);
-			result = prime * result + (int) (temp ^ (temp >>> 32));
-			result = prime * result + (int) (user ^ (user >>> 32));
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			SimilarUser other = (SimilarUser) obj;
-			if (Double.doubleToLongBits(similarity) != Double.doubleToLongBits(other.similarity))
-				return false;
-			if (user != other.user)
-				return false;
-			return true;
-		}
-
-		/** Defines an ordering from most similar to least similar. */
-		@Override
-		public int compareTo(SimilarUser other) {
-			double otherSimilarity = other.getSimilarity();
-			if (similarity > otherSimilarity) {
-				return -1;
-			}
-			if (similarity < otherSimilarity) {
-				return 1;
-			}
-			long otherUser = other.getUser();
-			if (user < otherUser) {
-				return -1;
-			}
-			if (user > otherUser) {
-				return 1;
-			}
-			return 0;
-		}
 
 		@Override
 		public String toString() {
-			return "SimilarUser [user=" + user + ", similarity=" + similarity + "]";
+			return "Pair [o1=" + o1 + ", o2=" + o2 + "]";
 		}
+
 	}
+
 }
