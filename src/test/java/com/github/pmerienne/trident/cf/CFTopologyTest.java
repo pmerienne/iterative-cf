@@ -151,8 +151,8 @@ public class CFTopologyTest {
 			Thread.sleep(5000);
 
 			List<Long> recommendedItems = extractRecommendedItems(localDRPC.execute("recommendedItems", "0"));
-			assertTrue(recommendedItems.contains(6));
-			assertTrue(recommendedItems.contains(4));
+			assertTrue(recommendedItems.contains(6L));
+			assertTrue(recommendedItems.contains(4L));
 		} finally {
 			cluster.shutdown();
 			localDRPC.shutdown();

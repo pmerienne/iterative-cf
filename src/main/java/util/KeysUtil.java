@@ -13,24 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.testing;
+package util;
 
+import java.util.Arrays;
 import java.util.List;
 
-import org.json.simple.JSONValue;
+public class KeysUtil {
 
-public class DRPCUtils {
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static List<List<Object>> extractValues(String drpcResult) {
-		List<List<Object>> values = (List) JSONValue.parse(drpcResult);
-		return values;
+	@SuppressWarnings("unchecked")
+	public static List<List<Object>> toKeys(Object singleKey) {
+		List<List<Object>> keys = Arrays.asList(Arrays.asList(singleKey));
+		return keys;
 	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static Object extractSingleValue(String drpcResult) {
-		List<List<Object>> values = (List) JSONValue.parse(drpcResult);
-		return values.get(0).get(0);
-	}
-
 }
