@@ -29,11 +29,10 @@ import java.util.Set;
 import storm.trident.state.map.MapState;
 import storm.trident.state.map.SnapshottableMap;
 import storm.trident.state.snapshot.Snapshottable;
-import util.KeysUtil;
-
 import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.model.SimilarUser;
+import com.github.pmerienne.trident.cf.util.KeysUtil;
 
 public abstract class DelegateCFState implements CFState {
 
@@ -51,7 +50,7 @@ public abstract class DelegateCFState implements CFState {
 	protected MapState<Map<Long, Double>> perUserRatings;
 
 	private Snapshottable<Set<Long>> users;
-	
+
 	public DelegateCFState() {
 		this.initMapStates();
 	}

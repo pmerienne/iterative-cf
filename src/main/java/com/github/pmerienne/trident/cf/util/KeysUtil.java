@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.state;
+package com.github.pmerienne.trident.cf.util;
 
-import org.junit.Before;
+import java.util.Arrays;
+import java.util.List;
 
-public class InMemoryCFStateTest extends AbstractCFStateTest {
+public class KeysUtil {
 
-	@Before
-	public void setup() {
-		this.state = new InMemoryCFState();
+	@SuppressWarnings("unchecked")
+	public static List<List<Object>> toKeys(Object singleKey) {
+		List<List<Object>> keys = Arrays.asList(Arrays.asList(singleKey));
+		return keys;
 	}
-
 }

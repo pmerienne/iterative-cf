@@ -35,7 +35,6 @@ import backtype.storm.LocalDRPC;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 
-import com.github.pmerienne.trident.cf.state.InMemoryCFState;
 import com.github.pmerienne.trident.cf.state.MemoryCFState;
 import com.github.pmerienne.trident.cf.testing.DRPCUtils;
 
@@ -81,7 +80,7 @@ public class CFTopologyTest {
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
-			Thread.sleep(50000);
+			Thread.sleep(8000);
 
 			// Check expected similarity
 			double expectedSimilarity01 = 0.8320502943378436;
@@ -144,12 +143,12 @@ public class CFTopologyTest {
 
 			// Create collaborative filtering topology with an in memory CF
 			// state
-			CFTopology cfTopology = new CFTopology(ratingStream, new InMemoryCFState.Factory());
+			CFTopology cfTopology = new CFTopology(ratingStream, new MemoryCFState.Factory());
 			cfTopology.createRecommendationStream(recommendationQueryStream, 2, 2);
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
-			Thread.sleep(5000);
+			Thread.sleep(8000);
 
 			List<Long> recommendedItems = extractRecommendedItems(localDRPC.execute("recommendedItems", "0"));
 			assertTrue(recommendedItems.contains(6L));
