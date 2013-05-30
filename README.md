@@ -13,6 +13,7 @@ Scalable Recommendation Algorithms](http://dl.acm.org/citation.cfm?id=2140812) (
 >
 > -- <cite>Manos Papagelis, Ioannis Rousidis, Dimitris Plexousakis, Elias Theoharopoulos</cite>
 
+Trident-CF is still in a beta phase and isn't production ready. It lays the fundamental algorithm and aims to be usable in production.
 
 # Usage
 
@@ -22,3 +23,8 @@ If you're familiar with high level batch processing tools like Pig or Cascading,
 It's recommended to read the [Storm and Trident documentation](https://github.com/nathanmarz/storm/wiki/Documentation).
 
 TODO
+
+# Collaborative Filtering State
+
+TODO : supports only non-transactional and transaction
+TOTO : Extends DelegateCFState for a simple CFStateImplementation
