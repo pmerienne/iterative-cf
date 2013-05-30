@@ -1,84 +1,33 @@
+/**
+ * Copyright 2013-2015 Pierre Merienne
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 		http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.github.pmerienne.trident.cf.state;
 
 import java.util.Map;
-import java.util.Set;
 
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
-import storm.trident.state.snapshot.Snapshottable;
+import storm.trident.state.map.MapState;
 import storm.trident.testing.MemoryMapState;
 import backtype.storm.task.IMetricsContext;
 
 public class MemoryCFState extends DelegateCFState {
 
-	protected MemoryMapState<Double> as = new MemoryMapState<Double>("as");
-	protected MemoryMapState<Double> bs = new MemoryMapState<Double>("bs");
-	protected MemoryMapState<Double> cs = new MemoryMapState<Double>("cs");
-	protected MemoryMapState<Double> ds = new MemoryMapState<Double>("ds");
-	protected MemoryMapState<Map<Long, Double>> coRatedSums = new MemoryMapState<Map<Long, Double>>("coRatedSums");
-	protected MemoryMapState<Long> coRatedCounts = new MemoryMapState<Long>("coRatedCounts");
-
-	protected MemoryMapState<Long> ms = new MemoryMapState<Long>("ms");
-	protected MemoryMapState<Double> averageRatings = new MemoryMapState<Double>("averageRatings");
-
-	protected MemoryMapState<Double> ratings = new MemoryMapState<Double>("ratings");
-	protected MemoryMapState<Map<Long, Double>> perUserRatings = new MemoryMapState<Map<Long, Double>>("perUserRatings");
-
-	private MemoryMapState<Set<Long>> users = new MemoryMapState<Set<Long>>("users");
-
 	@Override
-	protected MemoryMapState<Double> getAsMapState() {
-		return this.as;
-	}
-
-	@Override
-	protected MemoryMapState<Double> getBsMapState() {
-		return this.bs;
-	}
-
-	@Override
-	protected MemoryMapState<Double> getCsMapState() {
-		return this.cs;
-	}
-
-	@Override
-	protected MemoryMapState<Double> getDsMapState() {
-		return this.ds;
-	}
-
-	@Override
-	protected MemoryMapState<Map<Long, Double>> getCoRatedSumsMapState() {
-		return this.coRatedSums;
-	}
-
-	@Override
-	protected MemoryMapState<Long> getCoRatedCountsMapState() {
-		return this.coRatedCounts;
-	}
-
-	@Override
-	protected MemoryMapState<Long> getMsMapState() {
-		return this.ms;
-	}
-
-	@Override
-	protected MemoryMapState<Double> getAverageRatingsMapState() {
-		return this.averageRatings;
-	}
-
-	@Override
-	protected MemoryMapState<Double> getRatingsMapState() {
-		return this.ratings;
-	}
-
-	@Override
-	protected MemoryMapState<Map<Long, Double>> getPerUserRatingsMapState() {
-		return this.perUserRatings;
-	}
-
-	@Override
-	protected Snapshottable<Set<Long>> getUsersMapState() {
-		return this.users;
+	protected <T> MapState<T> createMapState(String id) {
+		return new MemoryMapState<T>(id);
 	}
 
 	public static class Factory implements StateFactory {

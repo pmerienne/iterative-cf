@@ -36,6 +36,7 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.state.InMemoryCFState;
+import com.github.pmerienne.trident.cf.state.MemoryCFState;
 import com.github.pmerienne.trident.cf.testing.DRPCUtils;
 
 public class CFTopologyTest {
@@ -75,12 +76,12 @@ public class CFTopologyTest {
 
 			// Create collaborative filtering topology with an in memory CF
 			// state
-			CFTopology cfTopology = new CFTopology(ratingStream, new InMemoryCFState.Factory());
+			CFTopology cfTopology = new CFTopology(ratingStream, new MemoryCFState.Factory());
 			cfTopology.createUserSimilarityStream(similarityQueryStream);
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
-			Thread.sleep(5000);
+			Thread.sleep(50000);
 
 			// Check expected similarity
 			double expectedSimilarity01 = 0.8320502943378436;

@@ -1,3 +1,18 @@
+/**
+ * Copyright 2013-2015 Pierre Merienne
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 		http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.github.pmerienne.trident.cf.state;
 
 import java.util.ArrayList;
@@ -12,49 +27,83 @@ import java.util.Queue;
 import java.util.Set;
 
 import storm.trident.state.map.MapState;
+import storm.trident.state.map.SnapshottableMap;
 import storm.trident.state.snapshot.Snapshottable;
-import storm.trident.testing.MemoryMapState;
 import util.KeysUtil;
+
+import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.model.SimilarUser;
 
 public abstract class DelegateCFState implements CFState {
 
+	protected MapState<Double> as;
+	protected MapState<Double> bs;
+	protected MapState<Double> cs;
+	protected MapState<Double> ds;
+	protected MapState<Map<Long, Double>> coRatedSums;
+	protected MapState<Long> coRatedCounts;
+
+	protected MapState<Long> ms;
+	protected MapState<Double> averageRatings;
+
+	protected MapState<Double> ratings;
+	protected MapState<Map<Long, Double>> perUserRatings;
+
+	private Snapshottable<Set<Long>> users;
+	
+	public DelegateCFState() {
+		this.initMapStates();
+	}
+
+	protected void initMapStates() {
+		this.as = this.createMapState("as");
+		this.bs = this.createMapState("bs");
+		this.cs = this.createMapState("cs");
+		this.ds = this.createMapState("ds");
+		this.coRatedSums = this.createMapState("coRatedSums");
+		this.coRatedCounts = this.createMapState("coRatedCounts");
+		this.ms = this.createMapState("ms");
+		this.averageRatings = this.createMapState("averageRatings");
+		this.ratings = this.createMapState("ratings");
+		this.perUserRatings = this.createMapState("perUserRatings");
+		this.users = this.createSnapshottableMapState("users");
+	}
+
 	@Override
 	public void beginCommit(Long txid) {
-		this.getAsMapState().beginCommit(txid);
-		this.getBsMapState().beginCommit(txid);
-		this.getCsMapState().beginCommit(txid);
-		this.getDsMapState().beginCommit(txid);
-		this.getCoRatedSumsMapState().beginCommit(txid);
-		this.getCoRatedCountsMapState().beginCommit(txid);
-		this.getMsMapState().beginCommit(txid);
-		this.getAverageRatingsMapState().beginCommit(txid);
-		this.getRatingsMapState().beginCommit(txid);
-		this.getPerUserRatingsMapState().beginCommit(txid);
-		this.getUsersMapState().beginCommit(txid);
+		this.as.beginCommit(txid);
+		this.bs.beginCommit(txid);
+		this.cs.beginCommit(txid);
+		this.ds.beginCommit(txid);
+		this.coRatedSums.beginCommit(txid);
+		this.coRatedCounts.beginCommit(txid);
+		this.ms.beginCommit(txid);
+		this.averageRatings.beginCommit(txid);
+		this.ratings.beginCommit(txid);
+		this.perUserRatings.beginCommit(txid);
+		this.users.beginCommit(txid);
 	}
 
 	@Override
 	public void commit(Long txid) {
-		this.getAsMapState().commit(txid);
-		this.getBsMapState().commit(txid);
-		this.getCsMapState().commit(txid);
-		this.getDsMapState().commit(txid);
-		this.getCoRatedSumsMapState().commit(txid);
-		this.getCoRatedCountsMapState().commit(txid);
-		this.getMsMapState().commit(txid);
-		this.getAverageRatingsMapState().commit(txid);
-		this.getRatingsMapState().commit(txid);
-		this.getPerUserRatingsMapState().commit(txid);
-		this.getUsersMapState().commit(txid);
+		this.as.commit(txid);
+		this.bs.commit(txid);
+		this.cs.commit(txid);
+		this.ds.commit(txid);
+		this.coRatedSums.commit(txid);
+		this.coRatedCounts.commit(txid);
+		this.ms.commit(txid);
+		this.averageRatings.commit(txid);
+		this.ratings.commit(txid);
+		this.perUserRatings.commit(txid);
+		this.users.commit(txid);
 	}
 
 	@Override
 	public Set<Long> getUsers() {
-		Snapshottable<Set<Long>> snapshottable = this.getUsersMapState();
-		Set<Long> users = snapshottable.get();
-		if(users == null) {
+		Set<Long> users = this.users.get();
+		if (users == null) {
 			users = new HashSet<Long>();
 		}
 		return users;
@@ -62,13 +111,12 @@ public abstract class DelegateCFState implements CFState {
 
 	@Override
 	public void addUser(long user) {
-		Snapshottable<Set<Long>> snapshottable = this.getUsersMapState();
-		Set<Long> users = snapshottable.get();
-		if(users == null) {
+		Set<Long> users = this.users.get();
+		if (users == null) {
 			users = new HashSet<Long>();
 		}
 		users.add(user);
-		snapshottable.set(users);
+		this.users.set(users);
 	}
 
 	@Override
@@ -114,74 +162,63 @@ public abstract class DelegateCFState implements CFState {
 
 	@Override
 	public long getM(long user) {
-		MapState<Long> mapState = this.getMsMapState();
-		Long m = get(mapState, user);
+		Long m = get(this.ms, user);
 		return m == null ? 0 : m;
 	}
 
 	@Override
 	public void setM(long user, long count) {
-		MapState<Long> mapState = this.getMsMapState();
-		put(mapState, user, count);
+		put(this.ms, user, count);
 	}
 
 	@Override
 	public void setAverageRating(long user, double newAverageRating) {
-		MapState<Double> mapState = this.getAverageRatingsMapState();
-		put(mapState, user, newAverageRating);
+		put(this.averageRatings, user, newAverageRating);
 	}
 
 	@Override
 	public double getAverageRating(long user) {
-		MapState<Double> mapState = this.getAverageRatingsMapState();
-		Double averageRating = get(mapState, user);
+		Double averageRating = get(this.averageRatings, user);
 		return averageRating == null ? 0.0 : averageRating;
 	}
 
 	@Override
 	public Double getRating(long user, long item) {
-		MapState<Double> mapState = this.getRatingsMapState();
-		return get(mapState, new UserItem(user, item));
+		return get(this.ratings, new UserItem(user, item));
 	}
 
 	@Override
 	public void addRating(long user, long item, double rating) {
-		MapState<Double> ratingsMapState = this.getRatingsMapState();
-		put(ratingsMapState, new UserItem(user, item), rating);
+		put(this.ratings, new UserItem(user, item), rating);
 
-		MapState<Map<Long, Double>> perUserRatingsMapState = this.getPerUserRatingsMapState();
-		Map<Long, Double> userRatings = get(perUserRatingsMapState, user);
+		Map<Long, Double> userRatings = get(this.perUserRatings, user);
 		if (userRatings == null) {
 			userRatings = new HashMap<Long, Double>();
 		}
 		userRatings.put(item, rating);
-		put(perUserRatingsMapState, user, userRatings);
+		put(this.perUserRatings, user, userRatings);
 	}
 
 	@Override
 	public Map<Long, Double> getRatings(long user) {
-		MapState<Map<Long, Double>> perUserRatingsMapState = this.getPerUserRatingsMapState();
-		Map<Long, Double> userRatings = get(perUserRatingsMapState, user);
+		Map<Long, Double> userRatings = get(this.perUserRatings, user);
 		return userRatings == null ? new HashMap<Long, Double>() : userRatings;
 	}
 
 	@Override
 	public long getCoRatedCount(long user1, long user2) {
-		MapState<Long> mapState = this.getCoRatedCountsMapState();
-		Long count = get(mapState, new UserPair(user1, user2));
+		Long count = get(this.coRatedCounts, new UserPair(user1, user2));
 		return count == null ? 0 : count;
 	}
 
 	@Override
 	public void setCoRatedCount(long user1, long user2, long count) {
-		MapState<Long> mapState = this.getCoRatedCountsMapState();
-		put(mapState, new UserPair(user1, user2), count);
+		put(this.coRatedCounts, new UserPair(user1, user2), count);
 	}
 
 	@Override
 	public Map<Long, Double> getCoRatedSums(long user1, long user2) {
-		MapState<Map<Long, Double>> mapState = this.getCoRatedSumsMapState();
-		Map<Long, Double> coRatedSums = get(mapState, new UserPair(user1, user2));
+		Map<Long, Double> coRatedSums = get(this.coRatedSums, new UserPair(user1, user2));
 		if (coRatedSums == null) {
 			coRatedSums = new HashMap<Long, Double>();
 			coRatedSums.put(user1, 0.0);
@@ -192,83 +229,59 @@ public abstract class DelegateCFState implements CFState {
 
 	@Override
 	public void setCoRatedSums(long user1, long user2, Map<Long, Double> coRatedSums) {
-		MapState<Map<Long, Double>> mapState = this.getCoRatedSumsMapState();
-		put(mapState, new UserPair(user1, user2), coRatedSums);
+		put(this.coRatedSums, new UserPair(user1, user2), coRatedSums);
 	}
 
 	@Override
 	public double getA(long user1, long user2) {
-		MapState<Double> mapState = this.getAsMapState();
-		Double a = get(mapState, new UserPair(user1, user2));
+		Double a = get(this.as, new UserPair(user1, user2));
 		return a == null ? -1 : a;
 	}
 
 	@Override
 	public void setA(long user1, long user2, double a) {
-		MapState<Double> mapState = this.getAsMapState();
-		put(mapState, new UserPair(user1, user2), a);
+		put(this.as, new UserPair(user1, user2), a);
 	}
 
 	@Override
 	public double getB(long user1, long user2) {
-		MapState<Double> mapState = this.getBsMapState();
-		Double value = get(mapState, new UserPair(user1, user2));
+		Double value = get(this.bs, new UserPair(user1, user2));
 		return value == null ? 0 : value;
 	}
 
 	@Override
 	public void setB(long user1, long user2, double b) {
-		MapState<Double> mapState = this.getBsMapState();
-		put(mapState, new UserPair(user1, user2), b);
+		put(this.bs, new UserPair(user1, user2), b);
 	}
 
 	@Override
 	public double getC(long user1, long user2) {
-		MapState<Double> mapState = this.getCsMapState();
-		Double value = get(mapState, new UserPair(user1, user2));
+		Double value = get(this.cs, new UserPair(user1, user2));
 		return value == null ? 0 : value;
 	}
 
 	@Override
 	public void setC(long user1, long user2, double c) {
-		MapState<Double> mapState = this.getCsMapState();
-		put(mapState, new UserPair(user1, user2), c);
+		put(this.cs, new UserPair(user1, user2), c);
 	}
 
 	@Override
 	public double getD(long user1, long user2) {
-		MapState<Double> mapState = this.getDsMapState();
-		Double value = get(mapState, new UserPair(user1, user2));
+		Double value = get(this.ds, new UserPair(user1, user2));
 		return value == null ? 0 : value;
 	}
 
 	@Override
 	public void setD(long user1, long user2, double d) {
-		MapState<Double> mapState = this.getDsMapState();
-		put(mapState, new UserPair(user1, user2), d);
+		put(this.ds, new UserPair(user1, user2), d);
 	}
 
-	protected abstract MemoryMapState<Double> getAsMapState();
+	protected abstract <T> MapState<T> createMapState(String id);
 
-	protected abstract MemoryMapState<Double> getBsMapState();
-
-	protected abstract MemoryMapState<Double> getCsMapState();
-
-	protected abstract MemoryMapState<Double> getDsMapState();
-
-	protected abstract MemoryMapState<Map<Long, Double>> getCoRatedSumsMapState();
-
-	protected abstract MemoryMapState<Long> getCoRatedCountsMapState();
-
-	protected abstract MemoryMapState<Long> getMsMapState();
-
-	protected abstract MemoryMapState<Double> getAverageRatingsMapState();
-
-	protected abstract MemoryMapState<Double> getRatingsMapState();
-
-	protected abstract MemoryMapState<Map<Long, Double>> getPerUserRatingsMapState();
-
-	protected abstract Snapshottable<Set<Long>> getUsersMapState();
+	protected <T> Snapshottable<T> createSnapshottableMapState(String id) {
+		MapState<T> delegate = this.createMapState(id);
+		return new SnapshottableMap<T>(delegate, new Values("$CF-MAP-STATE-GLOBAL$"));
+	}
 
 	protected static <T> T get(MapState<T> mapState, Object key) {
 		List<List<Object>> keys = KeysUtil.toKeys(key);
