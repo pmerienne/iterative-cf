@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.github.pmerienne.trident.cf.state.MemoryCFState.TransactionalMemoryMapState.MemoryMapStateBacking;
+
 import storm.trident.state.ITupleCollection;
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
@@ -39,9 +41,18 @@ import backtype.storm.tuple.Values;
 
 public class MemoryCFState extends DelegateCFState {
 
+	public MemoryCFState() {
+		this.initMapStates();
+	}
+
 	@Override
 	protected <T> MapState<T> createMapState(String id) {
 		return new TransactionalMemoryMapState<T>(id);
+	}
+
+	@Override
+	public void drop() {
+		MemoryMapStateBacking.clearAll();
 	}
 
 	public static class Factory implements StateFactory {
@@ -54,6 +65,7 @@ public class MemoryCFState extends DelegateCFState {
 			return new MemoryCFState();
 		}
 	}
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static class TransactionalMemoryMapState<T> implements Snapshottable<T>, ITupleCollection, MapState<T> {
 

@@ -49,11 +49,7 @@ public abstract class DelegateCFState implements CFState {
 	protected MapState<Double> ratings;
 	protected MapState<Map<Long, Double>> perUserRatings;
 
-	private Snapshottable<Set<Long>> users;
-
-	public DelegateCFState() {
-		this.initMapStates();
-	}
+	protected Snapshottable<Set<Long>> users;
 
 	protected void initMapStates() {
 		this.as = this.createMapState("as");
@@ -110,10 +106,7 @@ public abstract class DelegateCFState implements CFState {
 
 	@Override
 	public void addUser(long user) {
-		Set<Long> users = this.users.get();
-		if (users == null) {
-			users = new HashSet<Long>();
-		}
+		Set<Long> users = this.getUsers();
 		users.add(user);
 		this.users.set(users);
 	}

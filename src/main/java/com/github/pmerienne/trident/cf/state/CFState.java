@@ -223,4 +223,8 @@ public interface CFState extends State {
 	 */
 	void setD(long user1, long user2, double d);
 
+	/**
+	 * Drop all collaborative filtering data
+	 */
+	void drop();
 }

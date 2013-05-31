@@ -17,11 +17,12 @@ package com.github.pmerienne.trident.cf.state;
 
 import org.junit.Before;
 
-public class MemoryCFStateTest extends AbstractCFStateTest {
+public class DummyRedisCFStateTest extends AbstractCFStateTest {
 
 	@Before
 	public void setup() {
-		this.state = new MemoryCFState();
+		// Init state
+		this.state = new DummyRedisCFState();
 		this.state.drop();
 	}
 

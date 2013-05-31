@@ -35,6 +35,7 @@ import backtype.storm.LocalDRPC;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 
+import com.github.pmerienne.trident.cf.state.DummyRedisCFState;
 import com.github.pmerienne.trident.cf.state.MemoryCFState;
 import com.github.pmerienne.trident.cf.testing.DRPCUtils;
 
@@ -143,7 +144,7 @@ public class CFTopologyTest {
 
 			// Create collaborative filtering topology with an in memory CF
 			// state
-			CFTopology cfTopology = new CFTopology(ratingStream, new MemoryCFState.Factory());
+			CFTopology cfTopology = new CFTopology(ratingStream, new DummyRedisCFState.Factory());
 			cfTopology.createRecommendationStream(recommendationQueryStream, 2, 2);
 
 			// Submit and wait topology
