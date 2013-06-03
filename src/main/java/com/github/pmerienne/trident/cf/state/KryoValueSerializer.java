@@ -18,37 +18,28 @@ package com.github.pmerienne.trident.cf.state;
 import java.io.ByteArrayOutputStream;
 
 import storm.trident.state.Serializer;
-import storm.trident.state.TransactionalValue;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.FieldSerializer;
 import com.github.pmerienne.trident.cf.util.StringHexUtil;
 
-@SuppressWarnings({ "rawtypes" })
-public class KryoTransactionalValueSerializer<T> implements Serializer<TransactionalValue> {
+public class KryoValueSerializer implements Serializer<Object> {
 
 	private static final long serialVersionUID = 1689053104987281146L;
 
 	private Kryo kryo;
 
-	@SuppressWarnings("unchecked")
-	public KryoTransactionalValueSerializer() {
+	public KryoValueSerializer() {
 		this.kryo = new Kryo();
-		this.kryo.register(TransactionalValue.class, new FieldSerializer(this.kryo, TransactionalValue.class) {
-			public Object create(Kryo kryo, Input input, Class type) {
-				return new TransactionalValue(null, null);
-			}
-		});
 	}
 
 	@Override
-	public byte[] serialize(TransactionalValue obj) {
+	public byte[] serialize(Object obj) {
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		Output output = new Output(stream);
 
-		this.kryo.writeObjectOrNull(output, obj, TransactionalValue.class);
+		this.kryo.writeClassAndObject(output, obj);
 		output.close();
 
 		byte[] buffer = stream.toByteArray();
@@ -59,13 +50,13 @@ public class KryoTransactionalValueSerializer<T> implements Serializer<Transacti
 	}
 
 	@Override
-	public TransactionalValue deserialize(byte[] bytes) {
+	public Object deserialize(byte[] bytes) {
 		// Trick to avoid serialization problem!
 		String data = new String(bytes);
 		bytes = StringHexUtil.fromHexString(data);
 
 		Input input = new Input(bytes);
-		TransactionalValue obj = this.kryo.readObjectOrNull(input, TransactionalValue.class);
+		Object obj = this.kryo.readClassAndObject(input);
 		return obj;
 	}
 }

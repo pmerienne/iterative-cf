@@ -15,18 +15,19 @@
  */
 package com.github.pmerienne.trident.cf.state;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.Protocol;
 import storm.trident.redis.RedisState;
 import storm.trident.redis.RedisState.KeyFactory;
-import storm.trident.redis.RedisState.Options;
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
-import storm.trident.state.TransactionalValue;
 import storm.trident.state.map.MapState;
+import storm.trident.state.map.TransactionalMap;
 import backtype.storm.task.IMetricsContext;
 
 public class DummyRedisCFState extends DelegateCFState {
@@ -39,12 +40,6 @@ public class DummyRedisCFState extends DelegateCFState {
 	protected String host;
 	protected int port;
 
-	@SuppressWarnings("rawtypes")
-	private Map conf;
-	private IMetricsContext metrics;
-	private int partitionIndex;
-	private int numPartitions;
-
 	public DummyRedisCFState(String host, int port) {
 		this.host = host;
 		this.port = port;
@@ -53,16 +48,6 @@ public class DummyRedisCFState extends DelegateCFState {
 
 	public DummyRedisCFState() {
 		this(DEFAULT_HOST, DEFAULT_PORT);
-	}
-
-	@SuppressWarnings("rawtypes")
-	public DummyRedisCFState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
-		this(getHost(conf), getPort(conf));
-		this.conf = conf;
-		this.metrics = metrics;
-		this.partitionIndex = partitionIndex;
-		this.numPartitions = numPartitions;
-		this.initMapStates();
 	}
 
 	@Override
@@ -74,15 +59,30 @@ public class DummyRedisCFState extends DelegateCFState {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	protected <T> MapState<T> createMapState(String id) {
-		InetSocketAddress server = new InetSocketAddress(this.host, this.port);
+		// Create redis state
+		JedisPool pool = new JedisPool(new JedisPoolConfig(), this.host, this.port, Protocol.DEFAULT_TIMEOUT, null, Protocol.DEFAULT_DATABASE);
+		RedisState state = new RedisState(pool, null, new KryoTransactionalValueSerializer(), new StateNameAndHashCodeKeyFactory(id));
+		return TransactionalMap.build(state);
+	}
 
-		Options<TransactionalValue> options = new Options<TransactionalValue>();
-		options.serializer = new KryoTransactionalValueSerializer();
-		options.localCacheSize = 0;
+	public static class Factory implements StateFactory {
 
-		// Create redist state factory
-		StateFactory delegateStateFactory = RedisState.transactional(server, options, new StateNameAndHashCodeKeyFactory(id));
-		return (MapState<T>) delegateStateFactory.makeState(this.conf, this.metrics, this.partitionIndex, this.numPartitions);
+		private static final long serialVersionUID = 4718043951532492603L;
+
+		@SuppressWarnings("rawtypes")
+		@Override
+		public State makeState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
+			DummyRedisCFState cfState;
+			String host = getHost(conf);
+			Integer port = getPort(conf);
+			if (host != null && port != null) {
+				cfState = new DummyRedisCFState(host, port);
+			} else {
+				cfState = new DummyRedisCFState();
+			}
+			return cfState;
+		}
+
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -95,34 +95,6 @@ public class DummyRedisCFState extends DelegateCFState {
 	protected static Integer getPort(Map conf) {
 		Object value = conf.get(REDIS_PORT);
 		return value == null || !(value instanceof Integer) ? null : (Integer) value;
-	}
-
-	public static class Factory implements StateFactory {
-
-		private String host;
-		private Integer port;
-
-		public Factory() {
-		}
-
-		public Factory(String host, Integer port) {
-			this.host = host;
-			this.port = port;
-		}
-
-		private static final long serialVersionUID = 4718043951532492603L;
-
-		@SuppressWarnings("rawtypes")
-		@Override
-		public State makeState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
-			DummyRedisCFState cfState;
-			if (this.host != null && this.port != null) {
-				cfState = new DummyRedisCFState(this.host, this.port);
-			} else {
-				cfState = new DummyRedisCFState();
-			}
-			return cfState;
-		}
 	}
 
 	public static class StateNameAndHashCodeKeyFactory implements KeyFactory {
