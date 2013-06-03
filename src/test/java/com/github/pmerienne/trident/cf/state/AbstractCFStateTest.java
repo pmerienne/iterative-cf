@@ -76,6 +76,9 @@ public abstract class AbstractCFStateTest {
 		assertEquals(0.5, actualRatings.get(1L), 10e-3);
 		assertEquals(0.6, actualRatings.get(2L), 10e-3);
 		assertEquals(0.9, actualRatings.get(3L), 10e-3);
+
+		actualRatings = this.state.getRatings(1641);
+		assertTrue(actualRatings.isEmpty());
 	}
 
 	@Test
