@@ -16,11 +16,8 @@
 package com.github.pmerienne.trident.cf.state;
 
 import java.net.InetSocketAddress;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import redis.clients.jedis.Jedis;
 import storm.trident.redis.RedisState;
@@ -74,22 +71,17 @@ public class DummyRedisCFState extends DelegateCFState {
 		jedis.flushDB();
 	}
 
-	@Override
-	public Set<Long> getUsers() {
-		Collection<Long> users = this.users.get();
-		if (users == null) {
-			users = new HashSet<Long>();
-		}
-		return new HashSet<Long>(users);
-	}
-
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	protected <T> MapState<T> createMapState(String id) {
 		InetSocketAddress server = new InetSocketAddress(this.host, this.port);
 
+		Options<TransactionalValue> options = new Options<TransactionalValue>();
+		options.serializer = new KryoTransactionalValueSerializer();
+		options.localCacheSize = 0;
+
 		// Create redist state factory
-		StateFactory delegateStateFactory = RedisState.transactional(server, new Options<TransactionalValue>(), new StateNameAndHashCodeKeyFactory(id));
+		StateFactory delegateStateFactory = RedisState.transactional(server, options, new StateNameAndHashCodeKeyFactory(id));
 		return (MapState<T>) delegateStateFactory.makeState(this.conf, this.metrics, this.partitionIndex, this.numPartitions);
 	}
 
@@ -133,7 +125,7 @@ public class DummyRedisCFState extends DelegateCFState {
 		}
 	}
 
-	private static class StateNameAndHashCodeKeyFactory implements KeyFactory {
+	public static class StateNameAndHashCodeKeyFactory implements KeyFactory {
 
 		private static final long serialVersionUID = -6772832239644940448L;
 		private static final String PREFIX = "cf:";
@@ -155,6 +147,6 @@ public class DummyRedisCFState extends DelegateCFState {
 
 			return new StringBuilder(PREFIX).append(this.stateName).append(":").append(hashCode).toString();
 		}
-
 	}
+
 }

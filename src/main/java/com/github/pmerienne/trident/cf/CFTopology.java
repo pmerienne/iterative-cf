@@ -22,6 +22,7 @@ import backtype.storm.Config;
 import backtype.storm.tuple.Fields;
 
 import com.github.pmerienne.trident.cf.model.RecommendedItem;
+import com.github.pmerienne.trident.cf.model.SimilarUser;
 import com.github.pmerienne.trident.cf.model.WeightedRating;
 import com.github.pmerienne.trident.cf.model.WeightedRatings;
 
@@ -92,9 +93,10 @@ public class CFTopology {
 	}
 
 	public void configure(Config config) {
+		config.registerSerialization(RecommendedItem.class);
+		config.registerSerialization(SimilarUser.class);
 		config.registerSerialization(WeightedRating.class);
 		config.registerSerialization(WeightedRatings.class);
-		config.registerSerialization(RecommendedItem.class);
 	}
 
 	private void initRatingTopology() {

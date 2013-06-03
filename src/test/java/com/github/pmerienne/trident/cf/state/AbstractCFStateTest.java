@@ -33,9 +33,11 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testAddAndGetUsers() {
 		// When
+		this.state.beginCommit(1L);
 		this.state.addUser(1);
 		this.state.addUser(2);
 		this.state.addUser(3);
+		this.state.commit(1L);
 
 		// Then
 		long actualCount = this.state.userCount();
@@ -50,7 +52,9 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testAddRating() {
 		// When
+		this.state.beginCommit(1L);
 		this.state.addRating(1, 1, 0.5);
+		this.state.commit(1L);
 
 		// Then
 		double actualRating = this.state.getRating(1, 1);
@@ -60,9 +64,11 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testGetRatings() {
 		// When
+		this.state.beginCommit(1L);
 		this.state.addRating(1L, 1L, 0.5);
 		this.state.addRating(1L, 2L, 0.6);
 		this.state.addRating(1L, 3L, 0.9);
+		this.state.commit(1L);
 
 		// Then
 		Map<Long, Double> actualRatings = this.state.getRatings(1);
@@ -75,7 +81,9 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetM() {
 		// When
+		this.state.beginCommit(1L);
 		this.state.setM(1, 32);
+		this.state.commit(1L);
 
 		// Then
 		long actualCount = this.state.getM(1);
@@ -88,7 +96,9 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetA() {
 		// When
+		this.state.beginCommit(1L);
 		this.state.setA(1, 2, 0.8);
+		this.state.commit(1L);
 
 		// Then
 		double actualSimilarity = this.state.getA(1, 2);
@@ -103,8 +113,10 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetB() {
 		// When
+		this.state.beginCommit(1L);
 		double expectedB = 0.8;
 		this.state.setB(1, 2, expectedB);
+		this.state.commit(1L);
 
 		// Then
 		double actualB = this.state.getB(1, 2);
@@ -117,8 +129,10 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetC() {
 		// When
+		this.state.beginCommit(1L);
 		double expectedC = 0.8;
 		this.state.setC(1, 2, expectedC);
+		this.state.commit(1L);
 
 		// Then
 		double actualC = this.state.getC(1, 2);
@@ -131,8 +145,10 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetD() {
 		// When
+		this.state.beginCommit(1L);
 		double expectedD = 0.8;
 		this.state.setD(1, 2, expectedD);
+		this.state.commit(1L);
 
 		// Then
 		double actualD = this.state.getD(1, 2);
@@ -145,6 +161,7 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testGetMostSimilarUsers() {
 		// When
+		this.state.beginCommit(1L);
 		this.state.addUser(1);
 		this.state.addUser(2);
 		this.state.addUser(3);
@@ -155,6 +172,7 @@ public abstract class AbstractCFStateTest {
 		this.state.setA(1, 3, 0.8);
 		this.state.setA(1, 4, 0.3);
 		this.state.setA(1, 5, 0.9);
+		this.state.commit(1L);
 
 		// Then
 		Set<SimilarUser> similarUsers = this.state.getMostSimilarUsers(1, 2);
@@ -166,8 +184,10 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testGetAndSetAverageRating() {
 		// When
+		this.state.beginCommit(1L);
 		double expectedAverageRating = 0.56;
 		this.state.setAverageRating(1, expectedAverageRating);
+		this.state.commit(1L);
 
 		// Then
 		double actualAverageRating = this.state.getAverageRating(1);
@@ -179,8 +199,10 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetCoRatedCount() {
 		// When
+		this.state.beginCommit(1L);
 		long expectedCount = 12;
 		this.state.setCoRatedCount(1, 2, expectedCount);
+		this.state.commit(1L);
 
 		// Then
 		long actualCoRatedCount = this.state.getCoRatedCount(1, 2);
@@ -195,10 +217,12 @@ public abstract class AbstractCFStateTest {
 	@Test
 	public void testSetAndGetCoRatedSums() {
 		// When
+		this.state.beginCommit(1L);
 		Map<Long, Double> expectedCoRatedSums = new HashMap<Long, Double>();
 		expectedCoRatedSums.put(1L, 1.25d);
 		expectedCoRatedSums.put(2L, 2.05d);
 		this.state.setCoRatedSums(1, 2, expectedCoRatedSums);
+		this.state.commit(1L);
 
 		// Then
 		Map<Long, Double> actualCoRatedSums = this.state.getCoRatedSums(1, 2);
