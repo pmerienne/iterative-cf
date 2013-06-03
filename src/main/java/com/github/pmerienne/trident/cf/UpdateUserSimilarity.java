@@ -90,7 +90,11 @@ public class UpdateUserSimilarity extends BaseStateUpdater<CFState> {
 		b = b + e;
 		c = c + f;
 		d = d + g;
-		state.setA(user1, user2, b / (Math.sqrt(c) * Math.sqrt(d)));
+		double a = b / (Math.sqrt(c) * Math.sqrt(d));
+		if (Double.isInfinite(a) || Double.isNaN(a)) {
+			a = -1.0;
+		}
+		state.setA(user1, user2, a);
 		state.setB(user1, user2, b);
 		state.setC(user1, user2, c);
 		state.setD(user1, user2, d);
