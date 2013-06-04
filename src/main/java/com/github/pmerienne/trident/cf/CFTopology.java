@@ -25,6 +25,7 @@ import com.github.pmerienne.trident.cf.model.RecommendedItem;
 import com.github.pmerienne.trident.cf.model.SimilarUser;
 import com.github.pmerienne.trident.cf.model.WeightedRating;
 import com.github.pmerienne.trident.cf.model.WeightedRatings;
+import com.github.pmerienne.trident.cf.state.MemoryCFState;
 
 public class CFTopology {
 
@@ -52,47 +53,28 @@ public class CFTopology {
 	private final static String RATING_AVERAGES_FIELD = "rating_average";
 
 	private final Stream ratingStream;
-	private final StateFactory cfStateFactory;
-
-	private String user1Field = DEFAULT_USER1_FIELD;
-	private String itemField = DEFAULT_ITEM_FIELD;
-	private String ratingField = DEFAULT_RATING_FIELD;
-
 	private TridentState cfState;
 
-	public CFTopology(Stream ratingStream, StateFactory cfStateFactory) {
-		this.ratingStream = ratingStream;
-		this.cfStateFactory = cfStateFactory;
-		this.initRatingTopology();
+	private Options options;
+
+	public CFTopology(Stream ratingStream) {
+		this(ratingStream, new Options(), null);
 	}
 
-	public CFTopology(Stream ratingStream, StateFactory cfStateFactory, Config config) {
-		this.ratingStream = ratingStream;
-		this.cfStateFactory = cfStateFactory;
-		this.configure(config);
-		this.initRatingTopology();
+	public CFTopology(Stream ratingStream, Options options) {
+		this(ratingStream, options, null);
 	}
 
-	public CFTopology(Stream ratingStream, StateFactory cfStateFactory, String userField, String itemField, String ratingField) {
+	public CFTopology(Stream ratingStream, Options options, Config config) {
 		this.ratingStream = ratingStream;
-		this.cfStateFactory = cfStateFactory;
-		this.user1Field = userField;
-		this.itemField = itemField;
-		this.ratingField = ratingField;
+		this.options = options;
 		this.initRatingTopology();
+		if (config != null) {
+			this.registerKryoSerializer(config);
+		}
 	}
 
-	public CFTopology(Stream ratingStream, StateFactory cfStateFactory, Config config, String userField, String itemField, String ratingField) {
-		this.ratingStream = ratingStream;
-		this.cfStateFactory = cfStateFactory;
-		this.user1Field = userField;
-		this.itemField = itemField;
-		this.ratingField = ratingField;
-		this.configure(config);
-		this.initRatingTopology();
-	}
-
-	public void configure(Config config) {
+	public void registerKryoSerializer(Config config) {
 		config.registerSerialization(RecommendedItem.class);
 		config.registerSerialization(SimilarUser.class);
 		config.registerSerialization(WeightedRating.class);
@@ -108,14 +90,20 @@ public class CFTopology {
 
 		this.cfState = this.ratingStream
 		// Update user cache
-				.partitionPersist(this.cfStateFactory, new Fields(this.user1Field, this.itemField, this.ratingField), new UpdateUserCache(), updateUserCacheOutputfields);
+				.partitionPersist(this.options.cfStateFactory, new Fields(this.options.user1Field, this.options.itemField, this.options.ratingField), new UpdateUserCache(),
+						updateUserCacheOutputfields);
+
 		this.cfState.newValuesStream()
+		// .parallelismHint(this.options.updateUserCacheParallelism)
 		// Get all other users
 				.stateQuery(this.cfState, new Fields(USER1_FIELD), new FetchOtherUsers(), new Fields(USER2_FIELD))
+				// .parallelismHint(this.options.fetchUsersParallelism)
 				// Update user pair cache
-				.partitionPersist(this.cfStateFactory, updateUserPairCacheInputFields, new UpdateUserPairCache(), updateUserPairCacheOuputFields).newValuesStream()
+				.partitionPersist(this.options.cfStateFactory, updateUserPairCacheInputFields, new UpdateUserPairCache(), updateUserPairCacheOuputFields).newValuesStream()
+				// .parallelismHint(this.options.updateUserPairCacheParallelism)
 				// Update similarity
-				.partitionPersist(this.cfStateFactory, updateUserPairCacheOuputFields, new UpdateUserSimilarity());
+				.partitionPersist(this.options.cfStateFactory, updateUserPairCacheOuputFields, new UpdateUserSimilarity());
+		// .parallelismHint(this.options.updateSimilarityParallelism);
 	}
 
 	public Stream createUserSimilarityStream(Stream inputStream) {
@@ -146,5 +134,18 @@ public class CFTopology {
 				.aggregate(new Fields(USER1_RATINGS_FIELD, USER2_RATINGS_FIELD, DEFAULT_SIMILARITY_FIELD), new UnratedItemsCombiner(), new Fields(RATING_AVERAGES_FIELD))
 				// Convert to recommended item
 				.each(new Fields(RATING_AVERAGES_FIELD), new TopNRecommendedItems(nbItems), new Fields(recommendedItemField)).project(new Fields(recommendedItemField));
+	}
+
+	public static class Options {
+		// public int updateUserCacheParallelism = 1;
+		// public int fetchUsersParallelism = 1;
+		// public int updateUserPairCacheParallelism = 4;
+		// public int updateSimilarityParallelism = 10;
+
+		public StateFactory cfStateFactory = new MemoryCFState.Factory();
+
+		public String user1Field = DEFAULT_USER1_FIELD;
+		public String itemField = DEFAULT_ITEM_FIELD;
+		public String ratingField = DEFAULT_RATING_FIELD;
 	}
 }

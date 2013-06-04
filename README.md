@@ -13,7 +13,7 @@ Scalable Recommendation Algorithms](http://dl.acm.org/citation.cfm?id=2140812) (
 >
 > -- <cite>Manos Papagelis, Ioannis Rousidis, Dimitris Plexousakis, Elias Theoharopoulos</cite>
 
-Trident-CF is still in a beta phase and isn't production ready. It lays the fundamental algorithm and aims to be usable in production.
+Trident-CF is still in a beta phase and isn't production ready. It lays the fundamental algorithm however current performances are very bad.
 
 # Usage
 

@@ -84,7 +84,8 @@ public class NonTransactionalRedisCFState implements CFState {
 		Set<Long> users = new HashSet<Long>();
 		Jedis jedis = this.pool.getResource();
 		try {
-			Set<String> result = jedis.smembers(ALL_USERS_KEY);
+			String key = getKey(ALL_USERS_KEY);
+			Set<String> result = jedis.smembers(key);
 			for (String userId : result) {
 				users.add(Long.parseLong(userId));
 			}
@@ -98,7 +99,8 @@ public class NonTransactionalRedisCFState implements CFState {
 	public void addUser(long user) {
 		Jedis jedis = this.pool.getResource();
 		try {
-			jedis.sadd(ALL_USERS_KEY, Long.toString(user));
+			String key = getKey(ALL_USERS_KEY);
+			jedis.sadd(key, Long.toString(user));
 		} finally {
 			this.pool.returnResource(jedis);
 		}
@@ -110,7 +112,8 @@ public class NonTransactionalRedisCFState implements CFState {
 
 		Jedis jedis = this.pool.getResource();
 		try {
-			count = jedis.scard(ALL_USERS_KEY);
+			String key = getKey(ALL_USERS_KEY);
+			count = jedis.scard(key);
 		} finally {
 			this.pool.returnResource(jedis);
 		}
