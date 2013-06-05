@@ -93,17 +93,15 @@ public class CFTopology {
 				.partitionPersist(this.options.cfStateFactory, new Fields(this.options.user1Field, this.options.itemField, this.options.ratingField), new UpdateUserCache(),
 						updateUserCacheOutputfields);
 
-		this.cfState.newValuesStream()
-		// .parallelismHint(this.options.updateUserCacheParallelism)
-		// Get all other users
-				.stateQuery(this.cfState, new Fields(USER1_FIELD), new FetchOtherUsers(), new Fields(USER2_FIELD))
-				// .parallelismHint(this.options.fetchUsersParallelism)
+		this.cfState.newValuesStream().parallelismHint(this.options.updateUserCacheParallelism)
+				// Get all other users
+				.stateQuery(this.cfState, new Fields(USER1_FIELD), new FetchOtherUsers(), new Fields(USER2_FIELD)).parallelismHint(this.options.fetchUsersParallelism)
 				// Update user pair cache
 				.partitionPersist(this.options.cfStateFactory, updateUserPairCacheInputFields, new UpdateUserPairCache(), updateUserPairCacheOuputFields).newValuesStream()
-				// .parallelismHint(this.options.updateUserPairCacheParallelism)
+				.parallelismHint(this.options.updateUserPairCacheParallelism)
 				// Update similarity
-				.partitionPersist(this.options.cfStateFactory, updateUserPairCacheOuputFields, new UpdateUserSimilarity());
-		// .parallelismHint(this.options.updateSimilarityParallelism);
+				.partitionPersist(this.options.cfStateFactory, updateUserPairCacheOuputFields, new UpdateUserSimilarity())
+				.parallelismHint(this.options.updateSimilarityParallelism);
 	}
 
 	public Stream createUserSimilarityStream(Stream inputStream) {
@@ -137,10 +135,10 @@ public class CFTopology {
 	}
 
 	public static class Options {
-		// public int updateUserCacheParallelism = 1;
-		// public int fetchUsersParallelism = 1;
-		// public int updateUserPairCacheParallelism = 4;
-		// public int updateSimilarityParallelism = 10;
+		 public int updateUserCacheParallelism = 1;
+		 public int fetchUsersParallelism = 1;
+		 public int updateUserPairCacheParallelism = 4;
+		 public int updateSimilarityParallelism = 10;
 
 		public StateFactory cfStateFactory = new MemoryCFState.Factory();
 

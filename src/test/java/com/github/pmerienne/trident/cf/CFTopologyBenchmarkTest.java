@@ -16,33 +16,36 @@ public class CFTopologyBenchmarkTest {
 
 	@Test
 	public void benchmark() throws InterruptedException {
-		int batchSize = 100;
-		int testDuration = 60;
+		int batchSize = 5;
+		int testDuration = 240;
+		int nbUsers = 500;
+		int nbItems = 500;
 
-		Options inMemoryOptions = new Options();
-		long inMemoryStateRatingsPerSecond = this.benchmark(inMemoryOptions, batchSize, testDuration);
+		Options options = new Options();
+		options.updateUserCacheParallelism = 5;
+		options.fetchUsersParallelism = 5;
+		options.updateUserPairCacheParallelism = 10;
+		options.updateSimilarityParallelism = 20;
+		 options.cfStateFactory = new NonTransactionalRedisCFState.Factory();
+		double localRedisStateRatingsPerSecond = this.benchmark(options, batchSize, testDuration, nbUsers, nbItems);
 
-		Options localRedisOptions = new Options();
-		localRedisOptions.cfStateFactory = new NonTransactionalRedisCFState.Factory();
-		long localRedisStateRatingsPerSecond = this.benchmark(localRedisOptions, batchSize, testDuration);
-
-		System.out.println("In Memory : " + inMemoryStateRatingsPerSecond + " ratings/s");
+		// System.out.println("In Memory : " + inMemoryStateRatingsPerSecond +
+		// " ratings/s");
 		System.out.println("Local redis : " + localRedisStateRatingsPerSecond + " ratings/s");
 	}
 
-	protected long benchmark(Options options, int batchSize, int testDuration) throws InterruptedException {
+	protected double benchmark(Options options, int batchSize, int testDuration, int nbUsers, int nbItems) throws InterruptedException {
 		// Start local cluster
 		LocalCluster cluster = new LocalCluster();
-		LocalDRPC localDRPC = new LocalDRPC();
 
-		long emitedBatchCount = 0;
+		double completedBatchCount = 0.0;
 		try {
 			// Build topology
 			TridentTopology topology = new TridentTopology();
-			RandomRatingsSpout ratingsSpout = new RandomRatingsSpout(batchSize, 500, 500);
+			RandomRatingsSpout ratingsSpout = new RandomRatingsSpout(batchSize, nbUsers, nbItems);
 
 			// Create ratings stream
-			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
+			Stream ratingStream = topology.newStream("ratings", ratingsSpout).parallelismHint(options.updateUserCacheParallelism);
 
 			// Create collaborative filtering topology with an in memory CF
 			// state
@@ -53,11 +56,10 @@ public class CFTopologyBenchmarkTest {
 			Thread.sleep(testDuration * 1000);
 
 			// Check expected similarity
-			emitedBatchCount = ratingsSpout.getAndResetCompletedBatchCount();
+			completedBatchCount = ratingsSpout.getAndResetCompletedBatchCount();
 		} finally {
 			cluster.shutdown();
-			localDRPC.shutdown();
 		}
-		return emitedBatchCount * batchSize / testDuration;
+		return completedBatchCount * batchSize / testDuration;
 	}
 }

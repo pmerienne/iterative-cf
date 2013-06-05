@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import storm.trident.operation.TridentCollector;
 import storm.trident.spout.IBatchSpout;
-import backtype.storm.Config;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
@@ -62,9 +61,7 @@ public class RandomRatingsSpout implements IBatchSpout {
 
 	@Override
 	public Map getComponentConfiguration() {
-		Config conf = new Config();
-		conf.setMaxTaskParallelism(1);
-		return conf;
+		return null;
 	}
 
 	@Override
