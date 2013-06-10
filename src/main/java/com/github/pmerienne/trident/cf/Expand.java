@@ -13,16 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.state;
+package com.github.pmerienne.trident.cf;
 
-import org.junit.Before;
+import java.util.List;
 
-public class MemoryCFStateTest extends AbstractCFStateTest {
+import storm.trident.operation.BaseFunction;
+import storm.trident.operation.TridentCollector;
+import storm.trident.tuple.TridentTuple;
 
-	@Before
-	public void setup() {
-		this.state = new MemoryCFState();
-		this.state.drop();
+public class Expand extends BaseFunction {
+
+	private static final long serialVersionUID = 8145541772870836505L;
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void execute(TridentTuple tuple, TridentCollector collector) {
+		List<Object> list = (List<Object>) tuple.get(0);
+		collector.emit(list);
 	}
 
 }

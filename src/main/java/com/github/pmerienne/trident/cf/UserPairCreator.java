@@ -13,17 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.state;
+package com.github.pmerienne.trident.cf;
 
-import org.junit.Before;
+import storm.trident.operation.BaseFunction;
+import storm.trident.operation.TridentCollector;
+import storm.trident.tuple.TridentTuple;
+import backtype.storm.tuple.Values;
 
-public class DummyRedisCFStateTest extends AbstractCFStateTest {
+import com.github.pmerienne.trident.cf.model.UserPair;
 
-	@Before
-	public void setup() {
-		// Init state
-		this.state = new DummyRedisCFState();
-		this.state.drop();
+public class UserPairCreator extends BaseFunction {
+
+	private static final long serialVersionUID = -3274602187160697060L;
+
+	@Override
+	public void execute(TridentTuple tuple, TridentCollector collector) {
+		long user1 = tuple.getLong(0);
+		long user2 = tuple.getLong(1);
+		collector.emit(new Values(new UserPair(user1, user2)));
 	}
 
 }

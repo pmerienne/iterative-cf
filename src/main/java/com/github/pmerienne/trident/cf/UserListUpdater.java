@@ -15,37 +15,36 @@
  */
 package com.github.pmerienne.trident.cf;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import storm.trident.operation.TridentCollector;
-import storm.trident.state.BaseQueryFunction;
+import storm.trident.state.BaseStateUpdater;
 import storm.trident.tuple.TridentTuple;
 import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.state.CFState;
 
-public class UserRatingsQuery extends BaseQueryFunction<CFState, Map<Long, Double>> {
+public class UserListUpdater extends BaseStateUpdater<CFState> {
 
-	private static final long serialVersionUID = -3640119024471641688L;
+	private static final long serialVersionUID = 3795276329800560206L;
 
 	@Override
-	public List<Map<Long, Double>> batchRetrieve(CFState state, List<TridentTuple> args) {
-		List<Map<Long, Double>> ratings = new ArrayList<Map<Long, Double>>(args.size());
+	public void updateState(CFState state, List<TridentTuple> tuples, TridentCollector collector) {
+		Set<Long> users = new HashSet<Long>();
 
-		long user;
-		for (TridentTuple tuple : args) {
+		long user, item;
+		for (TridentTuple tuple : tuples) {
 			user = tuple.getLong(0);
-			ratings.add(state.getRatings(user));
+			item = tuple.getLong(1);
+			users.add(user);
+
+			// used for the new values stream
+			collector.emit(new Values(user, item));
 		}
 
-		return ratings;
-	}
-
-	@Override
-	public void execute(TridentTuple tuple, Map<Long, Double> result, TridentCollector collector) {
-		collector.emit(new Values(result));
+		state.addUsers(users);
 	}
 
 }

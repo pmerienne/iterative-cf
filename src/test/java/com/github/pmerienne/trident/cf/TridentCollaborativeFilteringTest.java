@@ -37,10 +37,48 @@ import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.testing.DRPCUtils;
 
-public class CFTopologyTest {
+public class TridentCollaborativeFilteringTest {
 
 	@Test
-	public void testPearsonSimilarityInTopology() throws InterruptedException {
+	public void testSimilarityUpdate() throws InterruptedException {
+		// Start local cluster
+		LocalCluster cluster = new LocalCluster();
+
+		try {
+			// Build topology
+			TridentTopology topology = new TridentTopology();
+
+			// Create rating spout
+			Values[] ratings = new Values[8];
+			ratings[0] = new Values(0L, 10L);
+			ratings[1] = new Values(1L, 10L);
+			ratings[2] = new Values(2L, 12L);
+			ratings[3] = new Values(3L, 13L);
+			ratings[4] = new Values(1L, 14L);
+
+			ratings[5] = new Values(0L, 15L);
+			ratings[6] = new Values(1L, 16L);
+			ratings[7] = new Values(2L, 13L);
+			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
+
+			// Create ratings stream
+			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
+
+			// Create collaborative filtering topology
+			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
+			cf.initSimilarityTopology(topology, ratingStream);
+
+			// Submit and wait topology
+			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
+			Thread.sleep(8000);
+
+		} finally {
+			cluster.shutdown();
+		}
+	}
+
+	@Test
+	public void testUserSimilarity() throws InterruptedException {
 		// Start local cluster
 		LocalCluster cluster = new LocalCluster();
 		LocalDRPC localDRPC = new LocalDRPC();
@@ -51,48 +89,40 @@ public class CFTopologyTest {
 
 			// Create rating spout
 			Values[] ratings = new Values[10];
-			ratings[0] = new Values(0L, 0L, 0.0);
-			ratings[1] = new Values(0L, 1L, 0.5);
-			ratings[2] = new Values(0L, 2L, 0.9);
-			ratings[3] = new Values(0L, 3L, 0.6);
+			ratings[0] = new Values(0L, 0L);
+			ratings[1] = new Values(0L, 1L);
+			ratings[2] = new Values(0L, 2L);
+			ratings[3] = new Values(0L, 3L);
 
-			ratings[4] = new Values(1L, 0L, 0.1);
-			ratings[5] = new Values(1L, 1L, 0.4);
-			ratings[6] = new Values(1L, 3L, 0.7);
+			ratings[4] = new Values(1L, 2L);
+			ratings[5] = new Values(1L, 3L);
+			ratings[6] = new Values(1L, 4L);
 
-			ratings[7] = new Values(2L, 0L, 0.8);
-			ratings[8] = new Values(2L, 2L, 0.2);
-			ratings[9] = new Values(2L, 3L, 0.1);
-			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(CFTopology.DEFAULT_USER1_FIELD, CFTopology.DEFAULT_ITEM_FIELD, CFTopology.DEFAULT_RATING_FIELD), 5, ratings);
+			ratings[7] = new Values(2L, 4L);
+			ratings[8] = new Values(2L, 5L);
+			ratings[9] = new Values(2L, 6L);
+			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
 
 			// Create ratings stream
 			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
-
-			// Create similarity query stream
 			Stream similarityQueryStream = topology.newDRPCStream("userSimilarity", localDRPC).each(new Fields("args"), new ExtractUsers(),
-					new Fields(CFTopology.DEFAULT_USER1_FIELD, CFTopology.DEFAULT_USER2_FIELD));
+					new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.USER2_FIELD));
 
-			// Create collaborative filtering topology with an in memory CF
-			// state
-			CFTopology cfTopology = new CFTopology(ratingStream);
-			cfTopology.createUserSimilarityStream(similarityQueryStream);
+			// Create collaborative filtering topology
+			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
+			cf.initSimilarityTopology(topology, ratingStream);
+			cf.createUserSimilarityStream(similarityQueryStream);
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
 			Thread.sleep(8000);
 
-			// Check expected similarity
-			double expectedSimilarity01 = 0.8320502943378436;
+			// Check expected similarities
 			double actualSimilarity01 = (Double) DRPCUtils.extractSingleValue(localDRPC.execute("userSimilarity", "0 1"));
-			assertEquals(expectedSimilarity01, actualSimilarity01, 10e-6);
-
-			double expectedSimilarity12 = -0.9728062146853667;
 			double actualSimilarity12 = (Double) DRPCUtils.extractSingleValue(localDRPC.execute("userSimilarity", "1 2"));
-			assertEquals(expectedSimilarity12, actualSimilarity12, 10e-6);
-
-			double expectedSimilarity02 = -0.8934051474415642;
 			double actualSimilarity02 = (Double) DRPCUtils.extractSingleValue(localDRPC.execute("userSimilarity", "0 2"));
-			assertEquals(expectedSimilarity02, actualSimilarity02, 10e-6);
+			assertTrue(actualSimilarity01 > actualSimilarity12);
+			assertEquals(0.0, actualSimilarity02, 10e-3);
 		} finally {
 			cluster.shutdown();
 			localDRPC.shutdown();
@@ -100,7 +130,7 @@ public class CFTopologyTest {
 	}
 
 	@Test
-	public void testItemsRecommendationInTopology() throws InterruptedException {
+	public void testItemRecommendation() throws InterruptedException {
 		// Start local cluster
 		LocalCluster cluster = new LocalCluster();
 		LocalDRPC localDRPC = new LocalDRPC();
@@ -110,46 +140,38 @@ public class CFTopologyTest {
 			TridentTopology topology = new TridentTopology();
 
 			// Create rating spout
-			Values[] ratings = new Values[19];
-			ratings[0] = new Values(0L, 0L, 0.9);
-			ratings[1] = new Values(0L, 2L, 0.8);
-			ratings[2] = new Values(0L, 3L, 0.1);
-			ratings[3] = new Values(0L, 7L, 0.2);
-			ratings[4] = new Values(0L, 8L, 0.9);
+			Values[] ratings = new Values[12];
+			ratings[0] = new Values(0L, 0L);
+			ratings[1] = new Values(0L, 2L);
+			ratings[2] = new Values(0L, 8L);
 
-			ratings[5] = new Values(1L, 1L, 0.8);
-			ratings[6] = new Values(1L, 3L, 0.9);
-			ratings[7] = new Values(1L, 4L, 0.2);
-			ratings[8] = new Values(1L, 5L, 0.8);
-			ratings[9] = new Values(1L, 6L, 0.1);
-			ratings[10] = new Values(1L, 7L, 0.8);
-			ratings[11] = new Values(1L, 8L, 0.2);
+			ratings[3] = new Values(1L, 1L);
+			ratings[4] = new Values(1L, 3L);
+			ratings[5] = new Values(1L, 5L);
+			ratings[6] = new Values(1L, 7L);
 
-			ratings[12] = new Values(2L, 0L, 0.8);
-			ratings[13] = new Values(2L, 1L, 0.1);
-			ratings[14] = new Values(2L, 2L, 0.9);
-			ratings[15] = new Values(2L, 3L, 0.2);
-			ratings[16] = new Values(2L, 4L, 0.8);
-			ratings[17] = new Values(2L, 6L, 0.9);
-			ratings[18] = new Values(2L, 8L, 0.9);
-			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(CFTopology.DEFAULT_USER1_FIELD, CFTopology.DEFAULT_ITEM_FIELD, CFTopology.DEFAULT_RATING_FIELD), 5, ratings);
+			ratings[7] = new Values(2L, 0L);
+			ratings[8] = new Values(2L, 2L);
+			ratings[9] = new Values(2L, 4L);
+			ratings[10] = new Values(2L, 6L);
+			ratings[11] = new Values(2L, 8L);
+			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
 
 			// Create ratings stream
 			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
+			Stream recommendationQueryStream = topology.newDRPCStream("recommendation", localDRPC).each(new Fields("args"), new ExtractUser(), new Fields(TridentCollaborativeFiltering.USER_FIELD));
 
-			// Create item recommendation query stream
-			Stream recommendationQueryStream = topology.newDRPCStream("recommendedItems", localDRPC).each(new Fields("args"), new ExtractUser(), new Fields(CFTopology.DEFAULT_USER1_FIELD));
-
-			// Create collaborative filtering topology with an in memory CF
-			// state
-			CFTopology cfTopology = new CFTopology(ratingStream);
-			cfTopology.createRecommendationStream(recommendationQueryStream, 2, 2);
+			// Create collaborative filtering topology
+			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
+			cf.initSimilarityTopology(topology, ratingStream);
+			cf.createItemRecommendationStream(recommendationQueryStream, 2, 10);
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
 			Thread.sleep(8000);
 
-			List<Long> recommendedItems = extractRecommendedItems(localDRPC.execute("recommendedItems", "0"));
+			// Check expected similarities
+			List<Long> recommendedItems = extractRecommendedItems(localDRPC.execute("recommendation", "0"));
 			assertTrue(recommendedItems.contains(6L));
 			assertTrue(recommendedItems.contains(4L));
 		} finally {
@@ -165,7 +187,6 @@ public class CFTopologyTest {
 	 * @return
 	 */
 	protected static List<Long> extractRecommendedItems(String drpcResult) {
-		//
 		List<Long> recommendedItems = new ArrayList<Long>();
 
 		int index = -1;

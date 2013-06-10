@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.util;
+package com.github.pmerienne.trident.cf.core;
 
-import java.util.Arrays;
-import java.util.List;
+public class CosineSimilarity implements UserSimilarity {
 
-public class KeysUtil {
+	private static final long serialVersionUID = -7536552960393359853L;
 
-	@SuppressWarnings("unchecked")
-	public static List<List<Object>> toKeys(Object singleKey) {
-		List<List<Object>> keys = Arrays.asList(Arrays.asList(singleKey));
-		return keys;
-	}
-
-	public static <T> T singleValue(List<T> values) {
-		return values != null && !values.isEmpty() ? values.get(0) : null;
+	public double userSimilarity(long user1PreferenceCount, long user2PreferenceCount, long coPreferenceCount) {
+		return coPreferenceCount / (Math.sqrt(user1PreferenceCount) * Math.sqrt(user2PreferenceCount));
 	}
 }

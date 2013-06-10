@@ -17,6 +17,7 @@ package com.github.pmerienne.trident.cf;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import storm.trident.operation.TridentCollector;
 import storm.trident.state.BaseQueryFunction;
@@ -25,25 +26,27 @@ import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.state.CFState;
 
-public class UserSimilarityQuery extends BaseQueryFunction<CFState, Double> {
+public class UserPreferencesQuery extends BaseQueryFunction<CFState, Set<Long>> {
 
-	private static final long serialVersionUID = -3959281861317353583L;
+	private static final long serialVersionUID = 9213616343976422150L;
 
 	@Override
-	public List<Double> batchRetrieve(CFState state, List<TridentTuple> args) {
-		List<Double> similarities = new ArrayList<Double>(args.size());
+	public List<Set<Long>> batchRetrieve(CFState state, List<TridentTuple> tuples) {
+		List<Set<Long>> results = new ArrayList<Set<Long>>();
 
-		for (TridentTuple tuple : args) {
-			long user1 = tuple.getLong(0);
-			long user2 = tuple.getLong(1);
-			similarities.add(state.getSimilarity(user1, user2));
+		Set<Long> preferences;
+		long user;
+		for (TridentTuple tuple : tuples) {
+			user = tuple.getLong(0);
+			preferences = state.getUserPreferences(user);
+			results.add(preferences);
 		}
 
-		return similarities;
+		return results;
 	}
 
 	@Override
-	public void execute(TridentTuple tuple, Double result, TridentCollector collector) {
+	public void execute(TridentTuple tuple, Set<Long> result, TridentCollector collector) {
 		collector.emit(new Values(result));
 	}
 

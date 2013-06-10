@@ -19,23 +19,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import com.github.pmerienne.trident.cf.state.CFState;
-
 import storm.trident.operation.TridentCollector;
 import storm.trident.state.BaseQueryFunction;
 import storm.trident.tuple.TridentTuple;
 import backtype.storm.tuple.Values;
 
-public class FetchOtherUsers extends BaseQueryFunction<CFState, Set<Long>> {
+import com.github.pmerienne.trident.cf.state.CFState;
 
-	private static final long serialVersionUID = -8188458622514047837L;
+public class GetUsersWithPreferenceQuery extends BaseQueryFunction<CFState, Set<Long>> {
+
+	private static final long serialVersionUID = -6608788984829246979L;
 
 	@Override
-	public List<Set<Long>> batchRetrieve(CFState state, List<TridentTuple> args) {
-		Set<Long> users = state.getUsers();
+	public List<Set<Long>> batchRetrieve(CFState state, List<TridentTuple> tuples) {
+		List<Set<Long>> results = new ArrayList<Set<Long>>(tuples.size());
 
-		List<Set<Long>> results = new ArrayList<Set<Long>>(args.size());
-		for (int i = 0; i < args.size(); i++) {
+		long item;
+		Set<Long> users;
+		for (TridentTuple tuple : tuples) {
+			item = tuple.getLong(1);
+			users = state.getUsersWithPreferenceFor(item);
 			results.add(users);
 		}
 
@@ -43,14 +46,12 @@ public class FetchOtherUsers extends BaseQueryFunction<CFState, Set<Long>> {
 	}
 
 	@Override
-	public void execute(TridentTuple tuple, Set<Long> result, TridentCollector collector) {
-		long user1 = tuple.getLong(0);
-
-		for (Long user : result) {
-			if (user != user1) {
-				collector.emit(new Values(user));
+	public void execute(TridentTuple tuple, Set<Long> users, TridentCollector collector) {
+		long user = tuple.getLong(0);
+		for (long otherUser : users) {
+			if (user != otherUser) {
+				collector.emit(new Values(otherUser));
 			}
 		}
 	}
-
 }

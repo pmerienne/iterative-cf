@@ -27,7 +27,7 @@ import storm.trident.tuple.TridentTuple;
 import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.model.RecommendedItem;
-import com.github.pmerienne.trident.cf.model.WeightedRatings;
+import com.github.pmerienne.trident.cf.model.WeightedPreferences;
 
 public class TopNRecommendedItems extends BaseFunction {
 
@@ -41,18 +41,18 @@ public class TopNRecommendedItems extends BaseFunction {
 
 	@Override
 	public void execute(TridentTuple tuple, TridentCollector collector) {
-		WeightedRatings weightedRatings = (WeightedRatings) tuple.get(0);
-		List<RecommendedItem> itemRecommendations = this.getItemRecommendations(weightedRatings);
+		WeightedPreferences weightedPreferences = (WeightedPreferences) tuple.get(0);
+		List<RecommendedItem> itemRecommendations = this.getItemRecommendations(weightedPreferences);
 		collector.emit(new Values(itemRecommendations));
 	}
 
-	protected List<RecommendedItem> getItemRecommendations(WeightedRatings weightedRatings) {
+	protected List<RecommendedItem> getItemRecommendations(WeightedPreferences weightedPreferences) {
 		Queue<RecommendedItem> topItems = new PriorityQueue<RecommendedItem>(this.nbItems + 1, Collections.reverseOrder());
 		boolean full = false;
 		double lowestTopValue = Double.NEGATIVE_INFINITY;
 		double recommendation;
-		for (Long item : weightedRatings.getItems()) {
-			recommendation = weightedRatings.getRecommendation(item);
+		for (Long item : weightedPreferences.getItems()) {
+			recommendation = weightedPreferences.getRecommendation(item);
 			if (!Double.isNaN(recommendation) && (!full || recommendation > lowestTopValue)) {
 				topItems.add(new RecommendedItem(item, recommendation));
 				if (full) {

@@ -15,36 +15,32 @@
  */
 package com.github.pmerienne.trident.cf;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import storm.trident.operation.TridentCollector;
-import storm.trident.state.BaseQueryFunction;
+import storm.trident.state.BaseStateUpdater;
 import storm.trident.tuple.TridentTuple;
 import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.state.CFState;
 
-public class UserSimilarityQuery extends BaseQueryFunction<CFState, Double> {
+public class UserPreferenceUpdater extends BaseStateUpdater<CFState> {
 
-	private static final long serialVersionUID = -3959281861317353583L;
+	private static final long serialVersionUID = 8199649920663679656L;
 
 	@Override
-	public List<Double> batchRetrieve(CFState state, List<TridentTuple> args) {
-		List<Double> similarities = new ArrayList<Double>(args.size());
+	public void updateState(CFState state, List<TridentTuple> tuples, TridentCollector collector) {
+		// TODO bulk update?
+		long user, item;
+		for (TridentTuple tuple : tuples) {
+			user = tuple.getLong(0);
+			item = tuple.getLong(1);
+			state.setUserPreference(user, item);
 
-		for (TridentTuple tuple : args) {
-			long user1 = tuple.getLong(0);
-			long user2 = tuple.getLong(1);
-			similarities.add(state.getSimilarity(user1, user2));
+			// used for the new values stream
+			collector.emit(new Values(user, item));
 		}
 
-		return similarities;
-	}
-
-	@Override
-	public void execute(TridentTuple tuple, Double result, TridentCollector collector) {
-		collector.emit(new Values(result));
 	}
 
 }

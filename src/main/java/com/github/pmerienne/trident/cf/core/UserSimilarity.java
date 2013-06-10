@@ -13,20 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.util;
+package com.github.pmerienne.trident.cf.core;
 
-import java.util.Arrays;
-import java.util.List;
+import java.io.Serializable;
 
-public class KeysUtil {
+public interface UserSimilarity extends Serializable {
 
-	@SuppressWarnings("unchecked")
-	public static List<List<Object>> toKeys(Object singleKey) {
-		List<List<Object>> keys = Arrays.asList(Arrays.asList(singleKey));
-		return keys;
-	}
-
-	public static <T> T singleValue(List<T> values) {
-		return values != null && !values.isEmpty() ? values.get(0) : null;
-	}
+	double userSimilarity(long user1PreferenceCount, long user2PreferenceCount, long coPreferenceCount);
 }

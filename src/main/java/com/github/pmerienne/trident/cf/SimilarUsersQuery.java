@@ -27,17 +27,17 @@ import backtype.storm.tuple.Values;
 import com.github.pmerienne.trident.cf.model.SimilarUser;
 import com.github.pmerienne.trident.cf.state.CFState;
 
-public class FetchSimilarUsers extends BaseQueryFunction<CFState, Set<SimilarUser>> {
+public class SimilarUsersQuery extends BaseQueryFunction<CFState, Set<SimilarUser>> {
 
 	private static final long serialVersionUID = -8188458622514047837L;
 
 	public final static int DEFAULT_COUNT = 10;
 	private int count = DEFAULT_COUNT;
 
-	public FetchSimilarUsers() {
+	public SimilarUsersQuery() {
 	}
 
-	public FetchSimilarUsers(int count) {
+	public SimilarUsersQuery(int count) {
 		this.count = count;
 	}
 
@@ -55,9 +55,9 @@ public class FetchSimilarUsers extends BaseQueryFunction<CFState, Set<SimilarUse
 	}
 
 	@Override
-	public void execute(TridentTuple tuple, Set<SimilarUser> result, TridentCollector collector) {
+	public void execute(TridentTuple tuple, Set<SimilarUser> similarUsers, TridentCollector collector) {
 		long user1 = tuple.getLong(0);
-		for (SimilarUser similarUser : result) {
+		for (SimilarUser similarUser : similarUsers) {
 			if (similarUser.getUser() != user1) {
 				collector.emit(new Values(similarUser.getUser(), similarUser.getSimilarity()));
 			}

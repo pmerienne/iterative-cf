@@ -13,20 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf.util;
+package com.github.pmerienne.trident.cf;
 
-import java.util.Arrays;
-import java.util.List;
+import storm.trident.operation.CombinerAggregator;
+import storm.trident.tuple.TridentTuple;
 
-public class KeysUtil {
+import com.github.pmerienne.trident.cf.model.UserPair;
 
-	@SuppressWarnings("unchecked")
-	public static List<List<Object>> toKeys(Object singleKey) {
-		List<List<Object>> keys = Arrays.asList(Arrays.asList(singleKey));
-		return keys;
+public class RemoveDuplicateUserPair implements CombinerAggregator<UserPair> {
+
+	private static final long serialVersionUID = -2825795244954595081L;
+
+	@Override
+	public UserPair init(TridentTuple tuple) {
+		UserPair userPair = (UserPair) tuple.get(0);
+		return userPair;
 	}
 
-	public static <T> T singleValue(List<T> values) {
-		return values != null && !values.isEmpty() ? values.get(0) : null;
+	@Override
+	public UserPair combine(UserPair val1, UserPair val2) {
+		return val1;
 	}
+
+	@Override
+	public UserPair zero() {
+		return null;
+	}
+
 }

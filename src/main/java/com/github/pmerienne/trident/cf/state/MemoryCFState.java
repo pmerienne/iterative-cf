@@ -16,43 +16,211 @@
 package com.github.pmerienne.trident.cf.state;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
 
-import com.github.pmerienne.trident.cf.state.MemoryCFState.TransactionalMemoryMapState.MemoryMapStateBacking;
-
-import storm.trident.state.ITupleCollection;
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
-import storm.trident.state.TransactionalValue;
-import storm.trident.state.ValueUpdater;
-import storm.trident.state.map.IBackingMap;
 import storm.trident.state.map.MapState;
-import storm.trident.state.map.SnapshottableMap;
-import storm.trident.state.map.TransactionalMap;
 import storm.trident.state.snapshot.Snapshottable;
-import storm.trident.testing.MemoryMapState;
 import backtype.storm.task.IMetricsContext;
-import backtype.storm.tuple.Values;
 
-public class MemoryCFState extends DelegateCFState {
+import com.github.pmerienne.trident.cf.model.SimilarUser;
+import com.github.pmerienne.trident.cf.model.UserPair;
+import com.github.pmerienne.trident.cf.util.KeysUtil;
+
+public class MemoryCFState implements CFState {
+
+	private Snapshottable<Set<Long>> userList;
+	private Snapshottable<Set<Long>> itemList;
+	private MapState<Long> coPreferenceCounts;
+	private MapState<Set<Long>> userPreferences;
+	private MapState<Set<Long>> preferedItems;
+	private MapState<Double> similarities;
 
 	public MemoryCFState() {
-		this.initMapStates();
+		this.itemList = new TransactionalMemoryMapState<Set<Long>>("itemList");
+		this.userList = new TransactionalMemoryMapState<Set<Long>>("userList");
+		this.coPreferenceCounts = new TransactionalMemoryMapState<Long>("coPreferenceCounts");
+		this.userPreferences = new TransactionalMemoryMapState<Set<Long>>("coPreferenceCounts");
+		this.preferedItems = new TransactionalMemoryMapState<Set<Long>>("preferedItems");
+		this.similarities = new TransactionalMemoryMapState<Double>("similarities");
 	}
 
 	@Override
-	protected <T> MapState<T> createMapState(String id) {
-		return new TransactionalMemoryMapState<T>(id);
+	public void beginCommit(Long txid) {
+		this.itemList.beginCommit(txid);
+		this.userList.beginCommit(txid);
+		this.coPreferenceCounts.beginCommit(txid);
+		this.userPreferences.beginCommit(txid);
+		this.preferedItems.beginCommit(txid);
+		this.similarities.beginCommit(txid);
+	}
+
+	@Override
+	public void commit(Long txid) {
+		this.itemList.commit(txid);
+		this.userList.commit(txid);
+		this.coPreferenceCounts.commit(txid);
+		this.userPreferences.commit(txid);
+		this.preferedItems.commit(txid);
+		this.similarities.commit(txid);
+	}
+
+	@Override
+	public void addItems(Set<Long> items) {
+		Set<Long> currentItems = this.getItems();
+		currentItems.addAll(items);
+		this.itemList.set(currentItems);
+	}
+
+	@Override
+	public Set<Long> getItems() {
+		Set<Long> items = this.itemList.get();
+		return items == null ? new HashSet<Long>() : items;
+	}
+
+	@Override
+	public long itemCount() {
+		Set<Long> items = this.getItems();
+		return items == null ? 0 : items.size();
+	}
+
+	@Override
+	public void addUsers(Set<Long> users) {
+		Set<Long> currentUsers = this.getUsers();
+		currentUsers.addAll(users);
+		this.userList.set(currentUsers);
+	}
+
+	@Override
+	public Set<Long> getUsers() {
+		Set<Long> users = this.userList.get();
+		return users == null ? new HashSet<Long>() : users;
+	}
+
+	@Override
+	public long userCount() {
+		Set<Long> users = this.getUsers();
+		return users == null ? 0 : users.size();
+	}
+
+	@Override
+	public long getNumItemsPreferedBy(long user1, long user2) {
+		Long count = get(this.coPreferenceCounts, new UserPair(user1, user2));
+		return count == null ? 0 : count;
+	}
+
+	@Override
+	public void setNumItemsPreferedBy(long user1, long user2, long numItems) {
+		put(this.coPreferenceCounts, new UserPair(user1, user2), numItems);
+	}
+
+	@Override
+	public void setUserPreference(long user, long item) {
+		Set<Long> users = get(this.preferedItems, item);
+		if (users == null) {
+			users = new HashSet<Long>();
+		}
+		users.add(user);
+		put(this.preferedItems, item, users);
+
+		Set<Long> preferences = get(this.userPreferences, user);
+		if (preferences == null) {
+			preferences = new HashSet<Long>();
+		}
+		preferences.add(item);
+		put(this.userPreferences, user, preferences);
+	}
+
+	@Override
+	public Set<Long> getUserPreferences(long user) {
+		Set<Long> preferences = get(this.userPreferences, user);
+		return preferences == null ? new HashSet<Long>() : preferences;
+	}
+
+	@Override
+	public Set<Long> getUsersWithPreferenceFor(long item) {
+		Set<Long> users = get(this.preferedItems, item);
+		return users == null ? new HashSet<Long>() : users;
+	}
+
+	@Override
+	public long getPreferenceCount(long user) {
+		Set<Long> preferences = get(this.userPreferences, user);
+		return preferences == null ? 0 : preferences.size();
+	}
+
+	@Override
+	public void setSimilarity(long user1, long user2, double similarity) {
+		put(this.similarities, new UserPair(user1, user2), similarity);
+	}
+
+	@Override
+	public double getSimilarity(long user1, long user2) {
+		Double similarity = get(this.similarities, new UserPair(user1, user2));
+		return similarity == null ? 0.0 : similarity;
+	}
+
+	@Override
+	public Set<SimilarUser> getMostSimilarUsers(long user, int count) {
+		// Inspired from
+		// org.apache.mahout.cf.taste.impl.recommender.TopItems.topUsers()
+		Queue<SimilarUser> topUsers = new PriorityQueue<SimilarUser>(count + 1, Collections.reverseOrder());
+
+		boolean full = false;
+		double lowestTopValue = Double.NEGATIVE_INFINITY;
+		Iterator<Long> allUserIDs = this.getUsers().iterator();
+		while (allUserIDs.hasNext()) {
+			long user2 = allUserIDs.next();
+			double similarity = this.getSimilarity(user, user2);
+			if (!Double.isNaN(similarity) && (!full || similarity > lowestTopValue)) {
+				topUsers.add(new SimilarUser(user2, similarity));
+				if (full) {
+					topUsers.poll();
+				} else if (topUsers.size() > count) {
+					full = true;
+					topUsers.poll();
+				}
+				lowestTopValue = topUsers.peek().getSimilarity();
+			}
+		}
+
+		int size = topUsers.size();
+		if (size == 0) {
+			return new HashSet<SimilarUser>();
+		}
+
+		List<SimilarUser> sorted = new ArrayList<SimilarUser>(topUsers);
+		Collections.sort(sorted);
+		Set<SimilarUser> result = new HashSet<SimilarUser>(sorted);
+
+		return result;
 	}
 
 	@Override
 	public void drop() {
-		MemoryMapStateBacking.clearAll();
+		TransactionalMemoryMapState.MemoryMapStateBacking.clearAll();
+	}
+
+	protected static <T> T get(MapState<T> delegate, Object key) {
+		List<List<Object>> keys = KeysUtil.toKeys(key);
+		List<T> values = delegate.multiGet(keys);
+		T value = KeysUtil.singleValue(values);
+		return value;
+	}
+
+	protected static <T> void put(MapState<T> delegate, Object key, T value) {
+		List<List<Object>> keys = KeysUtil.toKeys(key);
+		List<T> values = new ArrayList<T>(1);
+		values.add(value);
+		delegate.multiPut(keys, values);
 	}
 
 	public static class Factory implements StateFactory {
@@ -63,130 +231,6 @@ public class MemoryCFState extends DelegateCFState {
 		@Override
 		public State makeState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
 			return new MemoryCFState();
-		}
-	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static class TransactionalMemoryMapState<T> implements Snapshottable<T>, ITupleCollection, MapState<T> {
-
-		MemoryMapStateBacking<TransactionalValue> _backing;
-		SnapshottableMap<T> _delegate;
-
-		public TransactionalMemoryMapState(String id) {
-			_backing = new MemoryMapStateBacking(id);
-			_delegate = new SnapshottableMap(TransactionalMap.build(_backing), new Values("$MEMORY-MAP-STATE-GLOBAL$"));
-		}
-
-		public T update(ValueUpdater updater) {
-			return _delegate.update(updater);
-		}
-
-		public void set(T o) {
-			_delegate.set(o);
-		}
-
-		public T get() {
-			return _delegate.get();
-		}
-
-		public void beginCommit(Long txid) {
-			_delegate.beginCommit(txid);
-		}
-
-		public void commit(Long txid) {
-			_delegate.commit(txid);
-		}
-
-		public Iterator<List<Object>> getTuples() {
-			return _backing.getTuples();
-		}
-
-		public List<T> multiUpdate(List<List<Object>> keys, List<ValueUpdater> updaters) {
-			return _delegate.multiUpdate(keys, updaters);
-		}
-
-		public void multiPut(List<List<Object>> keys, List<T> vals) {
-			_delegate.multiPut(keys, vals);
-		}
-
-		public List<T> multiGet(List<List<Object>> keys) {
-			return _delegate.multiGet(keys);
-		}
-
-		@SuppressWarnings("serial")
-		public static class Factory implements StateFactory {
-
-			String _id;
-
-			public Factory() {
-				_id = UUID.randomUUID().toString();
-			}
-
-			@Override
-			public State makeState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
-				return new MemoryMapState(_id);
-			}
-		}
-
-		static ConcurrentHashMap<String, Map<List<Object>, Object>> _dbs = new ConcurrentHashMap<String, Map<List<Object>, Object>>();
-
-		static class MemoryMapStateBacking<T> implements IBackingMap<T>, ITupleCollection {
-
-			public static void clearAll() {
-				_dbs.clear();
-			}
-
-			Map<List<Object>, T> db;
-			Long currTx;
-
-			public MemoryMapStateBacking(String id) {
-				if (!_dbs.containsKey(id)) {
-					_dbs.put(id, new HashMap());
-				}
-				this.db = (Map<List<Object>, T>) _dbs.get(id);
-			}
-
-			@Override
-			public List<T> multiGet(List<List<Object>> keys) {
-				List<T> ret = new ArrayList();
-				for (List<Object> key : keys) {
-					ret.add(db.get(key));
-				}
-				return ret;
-			}
-
-			@Override
-			public void multiPut(List<List<Object>> keys, List<T> vals) {
-				for (int i = 0; i < keys.size(); i++) {
-					List<Object> key = keys.get(i);
-					T val = vals.get(i);
-					db.put(key, val);
-				}
-			}
-
-			@Override
-			public Iterator<List<Object>> getTuples() {
-				return new Iterator<List<Object>>() {
-
-					private Iterator<Map.Entry<List<Object>, T>> it = db.entrySet().iterator();
-
-					public boolean hasNext() {
-						return it.hasNext();
-					}
-
-					public List<Object> next() {
-						Map.Entry<List<Object>, T> e = it.next();
-						List<Object> ret = new ArrayList<Object>();
-						ret.addAll(e.getKey());
-						ret.add(((TransactionalValue) e.getValue()).getVal());
-						return ret;
-					}
-
-					public void remove() {
-						throw new UnsupportedOperationException("Not supported yet.");
-					}
-				};
-			}
 		}
 	}
 }
