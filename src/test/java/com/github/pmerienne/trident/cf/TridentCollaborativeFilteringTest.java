@@ -70,7 +70,7 @@ public class TridentCollaborativeFilteringTest {
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
-			Thread.sleep(8000);
+			Thread.sleep(80000);
 
 		} finally {
 			cluster.shutdown();
@@ -158,12 +158,12 @@ public class TridentCollaborativeFilteringTest {
 			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
 
 			// Create ratings stream
-			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
+			Stream preferenceStream = topology.newStream("preferences", ratingsSpout);
 			Stream recommendationQueryStream = topology.newDRPCStream("recommendation", localDRPC).each(new Fields("args"), new ExtractUser(), new Fields(TridentCollaborativeFiltering.USER_FIELD));
 
 			// Create collaborative filtering topology
 			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
-			cf.initSimilarityTopology(topology, ratingStream);
+			cf.initSimilarityTopology(topology, preferenceStream);
 			cf.createItemRecommendationStream(recommendationQueryStream, 2, 10);
 
 			// Submit and wait topology

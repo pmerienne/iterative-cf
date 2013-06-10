@@ -69,10 +69,10 @@ public class TridentCollaborativeFiltering {
 		config.registerSerialization(WeightedPreferences.class);
 	}
 
-	public void initSimilarityTopology(TridentTopology topology, Stream ratingStream) {
+	public void initSimilarityTopology(TridentTopology topology, Stream preferenceStream) {
 		this.cfState = topology.newStaticState(this.cfStateFactory);
 
-		ratingStream
+		preferenceStream
 				// // Update user preference
 				.partitionPersist(this.cfStateFactory, new Fields(USER_FIELD, ITEM_FIELD), new UserPreferenceUpdater(), new Fields(USER_FIELD, ITEM_FIELD))
 				.newValuesStream()
@@ -85,7 +85,7 @@ public class TridentCollaborativeFiltering {
 				// Get user 1 preference count
 				.stateQuery(cfState, new Fields(USER_FIELD), new PreferenceCountQuery(), new Fields(PREFERENCE_COUNT1_FIELD))
 				// Get other users
-				.stateQuery(cfState, new Fields(USER_FIELD, ITEM_FIELD), new GetUsersWithPreferenceQuery(), new Fields(USER2_FIELD))
+				.stateQuery(cfState, new Fields(USER_FIELD), new OtherUsersQuery(), new Fields(USER2_FIELD))
 				// Get user 2 preference count
 				.stateQuery(cfState, new Fields(USER2_FIELD), new PreferenceCountQuery(), new Fields(PREFERENCE_COUNT2_FIELD))
 				.parallelismHint(5)

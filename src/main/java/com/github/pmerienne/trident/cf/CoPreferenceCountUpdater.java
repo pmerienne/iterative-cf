@@ -31,18 +31,22 @@ public class CoPreferenceCountUpdater extends BaseStateUpdater<CFState> {
 
 	@Override
 	public void updateState(CFState state, List<TridentTuple> tuples, TridentCollector collector) {
-
+		long user1, user2, item, coPreferenceCount;
+		UserPair userPair;
 		for (TridentTuple tuple : tuples) {
-			UserPair userPair = (UserPair) tuple.get(0);
-			long user1 = userPair.getUser1();
-			long user2 = userPair.getUser2();
+			userPair = (UserPair) tuple.get(0);
+			user1 = userPair.getUser1();
+			user2 = userPair.getUser2();
+			item = tuple.getLong(1);
 
-			long coPreferenceCount = state.getNumItemsPreferedBy(user1, user2);
-			coPreferenceCount++;
-			state.setNumItemsPreferedBy(user1, user2, coPreferenceCount);
+			coPreferenceCount = state.getNumItemsPreferedBy(user1, user2);
+			if (state.hasUserPreferenceFor(user2, item)) {
+				coPreferenceCount++;
+				state.setNumItemsPreferedBy(user1, user2, coPreferenceCount);
+			}
 
 			// used for the new values stream
-			collector.emit(new Values(user1, user2, coPreferenceCount, tuple.get(1), tuple.get(2), tuple.get(3)));
+			collector.emit(new Values(user1, user2, coPreferenceCount, item, tuple.get(2), tuple.get(3)));
 		}
 
 	}

@@ -26,7 +26,7 @@ import backtype.storm.tuple.Values;
 
 import com.github.pmerienne.trident.cf.state.CFState;
 
-public class GetUsersWithPreferenceQuery extends BaseQueryFunction<CFState, Set<Long>> {
+public class OtherUsersQuery extends BaseQueryFunction<CFState, Set<Long>> {
 
 	private static final long serialVersionUID = -6608788984829246979L;
 
@@ -34,12 +34,9 @@ public class GetUsersWithPreferenceQuery extends BaseQueryFunction<CFState, Set<
 	public List<Set<Long>> batchRetrieve(CFState state, List<TridentTuple> tuples) {
 		List<Set<Long>> results = new ArrayList<Set<Long>>(tuples.size());
 
-		long item;
-		Set<Long> users;
-		for (TridentTuple tuple : tuples) {
-			item = tuple.getLong(1);
-			users = state.getUsersWithPreferenceFor(item);
-			results.add(users);
+		Set<Long> allUsers = state.getUsers();
+		for (int i = 0; i < tuples.size(); i++) {
+			results.add(allUsers);
 		}
 
 		return results;

@@ -36,7 +36,6 @@ public class RedisCFState implements CFState {
 	private final static String ALL_ITEMS_KEY = "items";
 	private final static String USER_SIMILARITY_KEY_PREFIX = "similarity";
 	private final static String CO_RATED_SUMS_KEY_PREFIX = "coratedsums";
-	private final static String PREFERED_ITEMS_KEY_PREFIX = "preferedItems";
 	private final static String USER_PREFERENCES_KEY_PREFIX = "userPreference";
 
 	public final static String DEFAULT_HOST = "localhost";
@@ -195,15 +194,26 @@ public class RedisCFState implements CFState {
 	public void setUserPreference(long user, long item) {
 		Jedis jedis = this.pool.getResource();
 		try {
-			String key = getKey(PREFERED_ITEMS_KEY_PREFIX, item);
-			jedis.sadd(key, Long.toString(user));
-
-			key = getKey(USER_PREFERENCES_KEY_PREFIX, user);
+			String key = getKey(USER_PREFERENCES_KEY_PREFIX, user);
 			jedis.sadd(key, Long.toString(item));
 		} finally {
 			this.pool.returnResource(jedis);
 		}
-
+	}
+	
+	@Override
+	public boolean hasUserPreferenceFor(long user, long item) {
+		boolean result = false;
+		
+		Jedis jedis = this.pool.getResource();
+		try {
+			String key = getKey(USER_PREFERENCES_KEY_PREFIX, user);
+			result = jedis.sismember(key, Long.toString(item));
+		} finally {
+			this.pool.returnResource(jedis);
+		}
+		
+		return result;
 	}
 
 	@Override
@@ -221,23 +231,6 @@ public class RedisCFState implements CFState {
 			this.pool.returnResource(jedis);
 		}
 		return items;
-	}
-
-	@Override
-	public Set<Long> getUsersWithPreferenceFor(long item) {
-		Set<Long> users = new HashSet<Long>();
-
-		Jedis jedis = this.pool.getResource();
-		try {
-			String key = getKey(PREFERED_ITEMS_KEY_PREFIX, item);
-			Set<String> results = jedis.smembers(key);
-			for (String userId : results) {
-				users.add(Long.parseLong(userId));
-			}
-		} finally {
-			this.pool.returnResource(jedis);
-		}
-		return users;
 	}
 
 	@Override

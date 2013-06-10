@@ -43,9 +43,9 @@ public interface CFState extends State {
 
 	Set<Long> getUserPreferences(long user);
 
-	Set<Long> getUsersWithPreferenceFor(long item);
-
 	long getPreferenceCount(long user);
+	
+	boolean hasUserPreferenceFor(long user, long item);
 
 	void setSimilarity(long user1, long user2, double similarity);
 

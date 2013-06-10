@@ -41,7 +41,6 @@ public class MemoryCFState implements CFState {
 	private Snapshottable<Set<Long>> itemList;
 	private MapState<Long> coPreferenceCounts;
 	private MapState<Set<Long>> userPreferences;
-	private MapState<Set<Long>> preferedItems;
 	private MapState<Double> similarities;
 
 	public MemoryCFState() {
@@ -49,7 +48,6 @@ public class MemoryCFState implements CFState {
 		this.userList = new TransactionalMemoryMapState<Set<Long>>("userList");
 		this.coPreferenceCounts = new TransactionalMemoryMapState<Long>("coPreferenceCounts");
 		this.userPreferences = new TransactionalMemoryMapState<Set<Long>>("coPreferenceCounts");
-		this.preferedItems = new TransactionalMemoryMapState<Set<Long>>("preferedItems");
 		this.similarities = new TransactionalMemoryMapState<Double>("similarities");
 	}
 
@@ -59,7 +57,6 @@ public class MemoryCFState implements CFState {
 		this.userList.beginCommit(txid);
 		this.coPreferenceCounts.beginCommit(txid);
 		this.userPreferences.beginCommit(txid);
-		this.preferedItems.beginCommit(txid);
 		this.similarities.beginCommit(txid);
 	}
 
@@ -69,7 +66,6 @@ public class MemoryCFState implements CFState {
 		this.userList.commit(txid);
 		this.coPreferenceCounts.commit(txid);
 		this.userPreferences.commit(txid);
-		this.preferedItems.commit(txid);
 		this.similarities.commit(txid);
 	}
 
@@ -124,13 +120,6 @@ public class MemoryCFState implements CFState {
 
 	@Override
 	public void setUserPreference(long user, long item) {
-		Set<Long> users = get(this.preferedItems, item);
-		if (users == null) {
-			users = new HashSet<Long>();
-		}
-		users.add(user);
-		put(this.preferedItems, item, users);
-
 		Set<Long> preferences = get(this.userPreferences, user);
 		if (preferences == null) {
 			preferences = new HashSet<Long>();
@@ -146,11 +135,11 @@ public class MemoryCFState implements CFState {
 	}
 
 	@Override
-	public Set<Long> getUsersWithPreferenceFor(long item) {
-		Set<Long> users = get(this.preferedItems, item);
-		return users == null ? new HashSet<Long>() : users;
+	public boolean hasUserPreferenceFor(long user, long item) {
+		Set<Long> preferences = get(this.userPreferences, user);
+		return preferences == null ? false : preferences.contains(item);
 	}
-
+	
 	@Override
 	public long getPreferenceCount(long user) {
 		Set<Long> preferences = get(this.userPreferences, user);
