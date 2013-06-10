@@ -53,6 +53,7 @@ TridentTopology topology = ...;
 Stream preferenceStream = ...;
 
 // Your recommendation query stream
+Stream recommendationQueryStream = ...;
 
 // Create collaborative filtering topology
 TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
