@@ -35,6 +35,7 @@ import backtype.storm.LocalDRPC;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 
+import com.github.pmerienne.trident.cf.builtin.PermanentSimilaritiesUpdateLauncher;
 import com.github.pmerienne.trident.cf.testing.DRPCUtils;
 
 public class TridentCollaborativeFilteringTest {
@@ -61,17 +62,17 @@ public class TridentCollaborativeFilteringTest {
 			ratings[7] = new Values(2L, 13L);
 			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
 
-			// Create ratings stream
-			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
+			// Create needed streams
+			Stream preferenceStream = topology.newStream("preferences", ratingsSpout);
+			Stream updateSimilaritiesStream = topology.newStream(null, new PermanentSimilaritiesUpdateLauncher());
 
 			// Create collaborative filtering topology
-			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
-			cf.initSimilarityTopology(topology, ratingStream);
+			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
+			cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
-			Thread.sleep(80000);
-
+			Thread.sleep(8000);
 		} finally {
 			cluster.shutdown();
 		}
@@ -103,14 +104,16 @@ public class TridentCollaborativeFilteringTest {
 			ratings[9] = new Values(2L, 6L);
 			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
 
-			// Create ratings stream
-			Stream ratingStream = topology.newStream("ratings", ratingsSpout);
+			// Create needed streams
+			Stream preferenceStream = topology.newStream("preferences", ratingsSpout);
+			Stream updateSimilaritiesStream = topology.newStream(null, new PermanentSimilaritiesUpdateLauncher());
 			Stream similarityQueryStream = topology.newDRPCStream("userSimilarity", localDRPC).each(new Fields("args"), new ExtractUsers(),
 					new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.USER2_FIELD));
 
 			// Create collaborative filtering topology
-			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
-			cf.initSimilarityTopology(topology, ratingStream);
+			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
+			cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
+			
 			cf.createUserSimilarityStream(similarityQueryStream);
 
 			// Submit and wait topology
@@ -157,13 +160,14 @@ public class TridentCollaborativeFilteringTest {
 			ratings[11] = new Values(2L, 8L);
 			FixedBatchSpout ratingsSpout = new FixedBatchSpout(new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.ITEM_FIELD), 5, ratings);
 
-			// Create ratings stream
+			// Create needed streams
 			Stream preferenceStream = topology.newStream("preferences", ratingsSpout);
+			Stream updateSimilaritiesStream = topology.newStream(null, new PermanentSimilaritiesUpdateLauncher());
 			Stream recommendationQueryStream = topology.newDRPCStream("recommendation", localDRPC).each(new Fields("args"), new ExtractUser(), new Fields(TridentCollaborativeFiltering.USER_FIELD));
 
 			// Create collaborative filtering topology
-			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering();
-			cf.initSimilarityTopology(topology, preferenceStream);
+			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
+			cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
 			cf.createItemRecommendationStream(recommendationQueryStream, 2, 10);
 
 			// Submit and wait topology
