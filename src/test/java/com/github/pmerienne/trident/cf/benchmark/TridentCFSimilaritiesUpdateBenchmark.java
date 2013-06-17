@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.pmerienne.trident.cf;
+package com.github.pmerienne.trident.cf.benchmark;
 
 import org.junit.After;
 import org.junit.Before;
@@ -27,6 +27,7 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.utils.Utils;
 
+import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering;
 import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering.Options;
 import com.github.pmerienne.trident.cf.testing.AllBinaryPreferencesSpout;
 import com.github.pmerienne.trident.cf.testing.SimilaritiesUpdateTracker;
