@@ -17,6 +17,9 @@ package com.github.pmerienne.trident.cf.state.updater;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import storm.trident.operation.TridentCollector;
 import storm.trident.state.BaseStateUpdater;
 import storm.trident.tuple.TridentTuple;
@@ -28,6 +31,7 @@ import com.github.pmerienne.trident.cf.state.MapMultimapState;
 public class CoPreferenceCountUpdater extends BaseStateUpdater<MapMultimapState<Long, Long, Long>> {
 
 	private static final long serialVersionUID = -4573528570416406157L;
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoPreferenceCountUpdater.class);
 
 	@Override
 	public void updateState(MapMultimapState<Long, Long, Long> state, List<TridentTuple> tuples, TridentCollector collector) {
@@ -52,6 +56,10 @@ public class CoPreferenceCountUpdater extends BaseStateUpdater<MapMultimapState<
 
 			// For new values stream
 			collector.emit(new Values(userPair, count));
+
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug("Increment co preference count between " + user1 + " and " + user2 + " to " + count);
+			}
 		}
 	}
 
