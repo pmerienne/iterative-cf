@@ -44,7 +44,10 @@ public class UserSimilarityUpdater extends BaseStateUpdater<SortedSetMultiMapSta
 
 			state.put(user1, new ScoredValue<Long>(similarity, user2));
 			state.put(user2, new ScoredValue<Long>(similarity, user2));
-			LOGGER.debug("Update similarity between " + user1 + " and " + user2 + " to " + similarity);
+
+			if(LOGGER.isDebugEnabled()) {
+				LOGGER.debug("Update similarity between " + user1 + " and " + user2 + " to " + similarity);
+			}
 		}
 	}
 }
