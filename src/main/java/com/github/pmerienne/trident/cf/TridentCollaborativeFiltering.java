@@ -146,8 +146,10 @@ public class TridentCollaborativeFiltering {
 				.stateQuery(this.preferredItemsState, new Fields(ITEM_FIELD), new UsersWithPreferenceQuery(), new Fields(USER2_FIELD))
 				.parallelismHint(this.singleUserOperationsParallelism)
 
-				// Remove duplicate
-				.each(new Fields(USER_FIELD, USER2_FIELD), new UserPairCreator(), new Fields(USER_PAIR_FIELD)).parallelismHint(this.userPairOperationsParallelism).groupBy(new Fields(USER_PAIR_FIELD))
+				// Remove duplicate user1, user2, item
+				.each(new Fields(USER_FIELD, USER2_FIELD), new UserPairCreator(), new Fields(USER_PAIR_FIELD))
+				.parallelismHint(this.userPairOperationsParallelism)
+				.groupBy(new Fields(USER_PAIR_FIELD, ITEM_FIELD))
 				.aggregate(new Fields(USER_PAIR_FIELD), new KeepFirst<UserPair>(), new Fields(UNIQUE_USER_PAIR_FIELD)).parallelismHint(this.userPairOperationsParallelism)
 
 				// Increment co preference count
