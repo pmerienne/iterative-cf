@@ -80,14 +80,17 @@ public class TridentCollaborativeFiltering {
 	private StateFactory coPreferenceCountStateFactory;
 	private StateFactory userSimilarityStateFactory;
 
-	public int singleUserOperationsParallelism;
-	public int userPairOperationsParallelism;
-
 	private TridentState updatedUsersState;
 	private TridentState userPreferencesState;
 	private TridentState preferredItemsState;
 	private TridentState coPreferenceCountState;
 	private TridentState userSimilarityState;
+
+	private int singleUserOperationsForPreferenceUpdateParallelism;
+	private int userPairOperationsForPreferenceUpdateParallelism;
+
+	private int singleUserOperationsForSimilarityUpdateParallelism;
+	private int userPairOperationsForSimilarityUpdateParallelism;
 
 	public TridentCollaborativeFiltering(TridentTopology topology, Options options) {
 		this.updatedUsersStateFactory = options.updatedUsersStateFactory;
@@ -96,8 +99,11 @@ public class TridentCollaborativeFiltering {
 		this.coPreferenceCountStateFactory = options.coPreferenceCountStateFactory;
 		this.userSimilarityStateFactory = options.userSimilarityStateFactory;
 
-		this.singleUserOperationsParallelism = options.singleUserOperationsParallelism;
-		this.userPairOperationsParallelism = options.userPairOperationsParallelism;
+		this.singleUserOperationsForPreferenceUpdateParallelism = options.singleUserOperationsForPreferenceUpdateParallelism;
+		this.userPairOperationsForPreferenceUpdateParallelism = options.userPairOperationsForPreferenceUpdateParallelism;
+
+		this.singleUserOperationsForSimilarityUpdateParallelism = options.singleUserOperationsForSimilarityUpdateParallelism;
+		this.userPairOperationsForSimilarityUpdateParallelism = options.userPairOperationsForSimilarityUpdateParallelism;
 
 		this.initStaticStates(topology);
 	}
@@ -129,32 +135,31 @@ public class TridentCollaborativeFiltering {
 		preferenceStream
 				// Update user->items preferences
 				.partitionPersist(this.userPreferencesStateFactory, new Fields(USER_FIELD, ITEM_FIELD), new UserPreferenceUpdater(), new Fields(USER_FIELD, ITEM_FIELD))
-				.parallelismHint(this.singleUserOperationsParallelism)
+				.parallelismHint(this.singleUserOperationsForPreferenceUpdateParallelism)
 				.newValuesStream()
 
 				// Update item->users preferences
 				.partitionPersist(this.preferredItemsStateFactory, new Fields(USER_FIELD, ITEM_FIELD), new PreferredItemUpdater(), new Fields(USER_FIELD, ITEM_FIELD))
-				.parallelismHint(this.singleUserOperationsParallelism)
+				.parallelismHint(this.singleUserOperationsForPreferenceUpdateParallelism)
 				.newValuesStream()
 
 				// Add user to updated user list
 				.partitionPersist(this.updatedUsersStateFactory, new Fields(USER_FIELD, ITEM_FIELD), new AddToUserList(), new Fields(USER_FIELD, ITEM_FIELD))
-				.parallelismHint(this.singleUserOperationsParallelism)
+				.parallelismHint(this.singleUserOperationsForPreferenceUpdateParallelism)
 				.newValuesStream()
 
 				// Get other user which rated item
 				.stateQuery(this.preferredItemsState, new Fields(ITEM_FIELD), new UsersWithPreferenceQuery(), new Fields(USER2_FIELD))
-				.parallelismHint(this.singleUserOperationsParallelism)
+				.parallelismHint(this.singleUserOperationsForPreferenceUpdateParallelism)
 
 				// Remove duplicate user1, user2, item
-				.each(new Fields(USER_FIELD, USER2_FIELD), new UserPairCreator(), new Fields(USER_PAIR_FIELD))
-				.parallelismHint(this.userPairOperationsParallelism)
-				.groupBy(new Fields(USER_PAIR_FIELD, ITEM_FIELD))
-				.aggregate(new Fields(USER_PAIR_FIELD), new KeepFirst<UserPair>(), new Fields(UNIQUE_USER_PAIR_FIELD)).parallelismHint(this.userPairOperationsParallelism)
+				.each(new Fields(USER_FIELD, USER2_FIELD), new UserPairCreator(), new Fields(USER_PAIR_FIELD)).parallelismHint(this.userPairOperationsForPreferenceUpdateParallelism)
+				.groupBy(new Fields(USER_PAIR_FIELD, ITEM_FIELD)).aggregate(new Fields(USER_PAIR_FIELD), new KeepFirst<UserPair>(), new Fields(UNIQUE_USER_PAIR_FIELD))
+				.parallelismHint(this.userPairOperationsForPreferenceUpdateParallelism)
 
 				// Increment co preference count
 				.partitionPersist(this.coPreferenceCountStateFactory, new Fields(UNIQUE_USER_PAIR_FIELD), new CoPreferenceCountUpdater(), new Fields(UNIQUE_USER_PAIR_FIELD, CO_PREFERENCE_COUNT))
-				.parallelismHint(this.userPairOperationsParallelism);
+				.parallelismHint(this.userPairOperationsForPreferenceUpdateParallelism);
 	}
 
 	protected void initUpdateSimilaritiesTopology(Stream updateSimilaritiesStream) {
@@ -162,27 +167,29 @@ public class TridentCollaborativeFiltering {
 
 				// Get all updated user and clear list
 				.partitionPersist(this.updatedUsersStateFactory, new GetAndClearUpdatedUsers(), new Fields(USER_FIELD))
-				.parallelismHint(this.singleUserOperationsParallelism)
+				.parallelismHint(this.singleUserOperationsForSimilarityUpdateParallelism)
 				.newValuesStream()
 
 				// Get user1 preference count
 				.stateQuery(this.userPreferencesState, new Fields(USER_FIELD), new PreferenceCountQuery(), new Fields(PREFERENCE_COUNT1_FIELD))
+				.parallelismHint(this.singleUserOperationsForSimilarityUpdateParallelism)
 
 				// Get users with co preference
 				.stateQuery(this.coPreferenceCountState, new Fields(USER_FIELD), new UsersWithCoPreferenceCountQuery(), new Fields(USER2_FIELD, CO_PREFERENCE_COUNT))
-				.parallelismHint(this.singleUserOperationsParallelism)
+				.parallelismHint(this.singleUserOperationsForSimilarityUpdateParallelism)
 
 				// Get user2 preference count
 				.stateQuery(this.userPreferencesState, new Fields(USER2_FIELD), new PreferenceCountQuery(), new Fields(PREFERENCE_COUNT2_FIELD))
-				.parallelismHint(this.userPairOperationsParallelism)
+				.parallelismHint(this.userPairOperationsForSimilarityUpdateParallelism)
 
 				// Measure similarity
 				.each(new Fields(PREFERENCE_COUNT1_FIELD, PREFERENCE_COUNT2_FIELD, CO_PREFERENCE_COUNT), new TanimotoCoefficientSimilarity(), new Fields(SIMILARITY_FIELD))
-				.parallelismHint(this.userPairOperationsParallelism)
+				.parallelismHint(this.userPairOperationsForSimilarityUpdateParallelism)
 
 				// Update similarity
 				.partitionPersist(this.userSimilarityStateFactory, new Fields(USER_FIELD, USER2_FIELD, SIMILARITY_FIELD), new UserSimilarityUpdater())
-				.parallelismHint(this.userPairOperationsParallelism);
+
+				.parallelismHint(this.userPairOperationsForSimilarityUpdateParallelism);
 		;
 	}
 
@@ -214,8 +221,11 @@ public class TridentCollaborativeFiltering {
 		public StateFactory coPreferenceCountStateFactory = new MemoryMapMultimapState.Factory();
 		public StateFactory userSimilarityStateFactory = new MemorySortedSetMultiMapState.Factory();
 
-		public int singleUserOperationsParallelism = 2;
-		public int userPairOperationsParallelism = 10;
+		public int singleUserOperationsForPreferenceUpdateParallelism = 2;
+		public int userPairOperationsForPreferenceUpdateParallelism = 10;
+
+		public int singleUserOperationsForSimilarityUpdateParallelism = 2;
+		public int userPairOperationsForSimilarityUpdateParallelism = 20;
 
 		public static Options inMemory() {
 			return new Options();
