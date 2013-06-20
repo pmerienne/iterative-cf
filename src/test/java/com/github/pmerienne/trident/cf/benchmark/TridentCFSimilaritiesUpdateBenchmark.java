@@ -15,6 +15,8 @@
  */
 package com.github.pmerienne.trident.cf.benchmark;
 
+import static org.junit.Assert.*;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -27,8 +29,8 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.utils.Utils;
 
-import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering;
 import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering.Options;
+import com.github.pmerienne.trident.cf.TridentCollaborativeFilteringBuilder;
 import com.github.pmerienne.trident.cf.testing.AllBinaryPreferencesSpout;
 import com.github.pmerienne.trident.cf.testing.SimilaritiesUpdateTracker;
 
@@ -56,8 +58,9 @@ public class TridentCFSimilaritiesUpdateBenchmark {
 		int nbItems = 100;
 		Options options = Options.inMemory();
 
-		long elapased = this.benchmark(options, batchSize, nbUsers, nbItems);
-		System.out.println("Similarities for " + nbUsers + " users and " + nbItems + " items build in " + elapased + "seconds");
+		long elapsed = this.benchmark(options, batchSize, nbUsers, nbItems);
+		System.out.println("Similarities for " + nbUsers + " users and " + nbItems + " items build in " + elapsed + "seconds");
+		assertTrue(elapsed < 5);
 	}
 
 	@Test
@@ -67,8 +70,9 @@ public class TridentCFSimilaritiesUpdateBenchmark {
 		int nbItems = 100;
 		Options options = Options.redis();
 
-		long elapased = this.benchmark(options, batchSize, nbUsers, nbItems);
-		System.out.println("Similarities for " + nbUsers + " users and " + nbItems + " items build in " + elapased + "seconds");
+		long elapsed = this.benchmark(options, batchSize, nbUsers, nbItems);
+		System.out.println("Similarities for " + nbUsers + " users and " + nbItems + " items build in " + elapsed + "seconds");
+		assertTrue(elapsed < 5);
 	}
 
 	protected long benchmark(Options options, int batchSize, int nbUsers, int nbItems) throws InterruptedException {
@@ -80,8 +84,8 @@ public class TridentCFSimilaritiesUpdateBenchmark {
 		Stream updateSimilaritiesStream = topology.newStream(null, similaritiesUpdateTracker);
 
 		// Create collaborative filtering topology
-		TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology, options);
-		cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
+		TridentCollaborativeFilteringBuilder builder = new TridentCollaborativeFilteringBuilder();
+		builder.use(topology).with(options).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
 
 		// Submit topology
 		this.cluster.submitTopology(TOPOLOGY_NAME, new Config(), topology.build());

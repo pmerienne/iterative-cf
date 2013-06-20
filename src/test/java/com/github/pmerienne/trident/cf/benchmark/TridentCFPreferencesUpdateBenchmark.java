@@ -24,9 +24,8 @@ import storm.trident.TridentTopology;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 
-import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering;
 import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering.Options;
-import com.github.pmerienne.trident.cf.testing.NoTupleSpout;
+import com.github.pmerienne.trident.cf.TridentCollaborativeFilteringBuilder;
 import com.github.pmerienne.trident.cf.testing.RandomBinaryPreferencesSpout;
 
 public class TridentCFPreferencesUpdateBenchmark {
@@ -130,11 +129,10 @@ public class TridentCFPreferencesUpdateBenchmark {
 
 		RandomBinaryPreferencesSpout preferencesSpout = new RandomBinaryPreferencesSpout(batchSize, nbUsers, nbItems);
 		Stream preferenceStream = topology.newStream("preferences", preferencesSpout);
-		Stream updateSimilaritiesStream = topology.newStream(null, new NoTupleSpout());
 
 		// Create collaborative filtering topology
-		TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology, options);
-		cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
+		TridentCollaborativeFilteringBuilder builder = new TridentCollaborativeFilteringBuilder();
+		builder.use(topology).with(options).process(preferenceStream).build();
 
 		// Submit and wait topology
 		cluster.submitTopology(TOPOLOGY_NAME, new Config(), topology.build());

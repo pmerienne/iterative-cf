@@ -67,8 +67,8 @@ public class TridentCollaborativeFilteringTest {
 			Stream updateSimilaritiesStream = topology.newStream(null, new PermanentSimilaritiesUpdateLauncher());
 
 			// Create collaborative filtering topology
-			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
-			cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
+			TridentCollaborativeFilteringBuilder builder = new TridentCollaborativeFilteringBuilder();
+			builder.use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
 
 			// Submit and wait topology
 			cluster.submitTopology(this.getClass().getSimpleName(), new Config(), topology.build());
@@ -111,9 +111,8 @@ public class TridentCollaborativeFilteringTest {
 					new Fields(TridentCollaborativeFiltering.USER_FIELD, TridentCollaborativeFiltering.USER2_FIELD));
 
 			// Create collaborative filtering topology
-			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
-			cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
-			
+			TridentCollaborativeFilteringBuilder builder = new TridentCollaborativeFilteringBuilder();
+			TridentCollaborativeFiltering cf = builder.use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
 			cf.createUserSimilarityStream(similarityQueryStream);
 
 			// Submit and wait topology
@@ -166,8 +165,8 @@ public class TridentCollaborativeFilteringTest {
 			Stream recommendationQueryStream = topology.newDRPCStream("recommendation", localDRPC).each(new Fields("args"), new ExtractUser(), new Fields(TridentCollaborativeFiltering.USER_FIELD));
 
 			// Create collaborative filtering topology
-			TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
-			cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
+			TridentCollaborativeFilteringBuilder builder = new TridentCollaborativeFilteringBuilder();
+			TridentCollaborativeFiltering cf = builder.use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
 			cf.createItemRecommendationStream(recommendationQueryStream, 2, 10);
 
 			// Submit and wait topology

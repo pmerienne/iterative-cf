@@ -80,7 +80,6 @@ public class TridentCollaborativeFiltering {
 	private StateFactory coPreferenceCountStateFactory;
 	private StateFactory userSimilarityStateFactory;
 
-	private TridentState updatedUsersState;
 	private TridentState userPreferencesState;
 	private TridentState preferredItemsState;
 	private TridentState coPreferenceCountState;
@@ -119,19 +118,18 @@ public class TridentCollaborativeFiltering {
 		config.registerSerialization(WeightedPreferences.class);
 	}
 
-	public void appendCollaborativeFilteringTopology(Stream preferenceStream, Stream similaritiesUpdateStream) {
-		this.initUpdatePreferencesTopology(preferenceStream);
-		this.initUpdateSimilaritiesTopology(similaritiesUpdateStream);
-	}
-
 	protected void initStaticStates(TridentTopology topology) {
 		this.userPreferencesState = topology.newStaticState(this.userPreferencesStateFactory);
 		this.preferredItemsState = topology.newStaticState(preferredItemsStateFactory);
-		this.updatedUsersState = topology.newStaticState(this.updatedUsersStateFactory);
 		this.coPreferenceCountState = topology.newStaticState(this.coPreferenceCountStateFactory);
 	}
 
-	protected void initUpdatePreferencesTopology(Stream preferenceStream) {
+	public void appendCollaborativeFilteringTopology(Stream preferenceStream, Stream similaritiesUpdateStream) {
+		this.appendUpdateUserPreferencesTopology(preferenceStream);
+		this.appendUpdateUserSimilaritiesTopology(similaritiesUpdateStream);
+	}
+
+	public void appendUpdateUserPreferencesTopology(Stream preferenceStream) {
 		preferenceStream
 				// Update user->items preferences
 				.partitionPersist(this.userPreferencesStateFactory, new Fields(USER_FIELD, ITEM_FIELD), new UserPreferenceUpdater(), new Fields(USER_FIELD, ITEM_FIELD))
@@ -162,7 +160,7 @@ public class TridentCollaborativeFiltering {
 				.parallelismHint(this.userPairOperationsForPreferenceUpdateParallelism);
 	}
 
-	protected void initUpdateSimilaritiesTopology(Stream updateSimilaritiesStream) {
+	public void appendUpdateUserSimilaritiesTopology(Stream updateSimilaritiesStream) {
 		this.userSimilarityState = updateSimilaritiesStream
 
 				// Get all updated user and clear list
@@ -193,12 +191,12 @@ public class TridentCollaborativeFiltering {
 		;
 	}
 
-	public Stream createUserSimilarityStream(Stream inputStream) {
-		return inputStream.stateQuery(this.userSimilarityState, new Fields(USER_FIELD, USER2_FIELD), new UserSimilarityQuery(), new Fields(SIMILARITY_FIELD)).project(new Fields(SIMILARITY_FIELD));
+	public Stream createUserSimilarityStream(Stream queryStream) {
+		return queryStream.stateQuery(this.userSimilarityState, new Fields(USER_FIELD, USER2_FIELD), new UserSimilarityQuery(), new Fields(SIMILARITY_FIELD)).project(new Fields(SIMILARITY_FIELD));
 	}
 
-	public Stream createItemRecommendationStream(Stream inputStream, int nbItems, int neighborhoodSize) {
-		return inputStream
+	public Stream createItemRecommendationStream(Stream queryStream, int nbItems, int neighborhoodSize) {
+		return queryStream
 				// Get user1 ratings
 				.stateQuery(this.userPreferencesState, new Fields(USER_FIELD), new UserPreferencesQuery(), new Fields(USER1_PREFERENCES))
 				// Get top n similar users
