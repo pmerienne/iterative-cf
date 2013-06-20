@@ -15,7 +15,7 @@ It's recommended to read the [Storm and Trident documentation](https://github.co
 ## Build collaborative filtering topology
  
 The Trident-CF algorithm is build over a TridentTopology and process a stream of binary ratings in order to measure similarity between users.
-The recommendation engine is build using a TridentCollaborativeFiltering : 
+Use the [TridentCollaborativeFilteringBuilder](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFilteringBuilder.java) to build the recommendation engine : 
 
 ```java
 // Your trident topology
@@ -28,9 +28,7 @@ Stream preferenceStream = ...;
 Stream updateSimilaritiesStream = ...;
 
 // Create collaborative filtering topology
-TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
-cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
-
+TridentCollaborativeFiltering tcf = new TridentCollaborativeFilteringBuilder().use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
 ```
 
 Note that the preference stream must contain at least the 2 fields ("user" and "item") while the update similarities stream doesn't need any field.
@@ -61,15 +59,13 @@ Stream updateSimilaritiesStream = ...;
 Stream recommendationQueryStream = ...;
 
 // Create collaborative filtering topology
-TridentCollaborativeFiltering cf = new TridentCollaborativeFiltering(topology);
-cf.appendCollaborativeFilteringTopology(preferenceStream, updateSimilaritiesStream);
+TridentCollaborativeFiltering cf = new TridentCollaborativeFilteringBuilder().use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
 Stream recommendationStream = cf.createItemRecommendationStream(recommendationQueryStream, nbItems, neighborhoodSize);
-
 
 ```
 
 The recommendation query stream must contain a "user" field containing a user id (long).
 The new stream (recommendationStream) contains a single field ("recommendedItems") containing a List of RecommendedItem.
 
-# Collaborative Filtering State
+# Configure the trident collaborative topology
 TODO
