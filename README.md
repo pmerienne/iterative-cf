@@ -13,9 +13,13 @@ If you're familiar with high level batch processing tools like Pig or Cascading,
 It's recommended to read the [Storm and Trident documentation](https://github.com/nathanmarz/storm/wiki/Documentation).
 
 ## Build collaborative filtering topology
- 
+
 The Trident-CF algorithm is build over a TridentTopology and process a stream of binary ratings in order to measure similarity between users.
-Use the [TridentCollaborativeFilteringBuilder](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFilteringBuilder.java) to build the recommendation engine : 
+Binary ratings are added in real time while the similarities for changed users have to be re-processed on demand using a trigger stream.
+The [TridentCollaborativeFilteringBuilder](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFilteringBuilder.java) helps you to build up the recommendation engine.
+
+For the purposes of illustration, this example processes an existing stream of binary ratings and re-computes users' similarities every time the trigger stream emit a tuple.
+
 
 ```java
 // Your trident topology
@@ -24,16 +28,22 @@ TridentTopology topology = ...;
 // Stream which contain the binary ratings
 Stream preferenceStream = ...;
 
-// Stream which emit an empty tuple when user similarities must be re-build
-Stream updateSimilaritiesStream = ...;
+// Stream which emit an empty tuple when user similarities must be re-computed
+Stream triggerStream = ...;
 
 // Create collaborative filtering topology
-TridentCollaborativeFiltering tcf = new TridentCollaborativeFilteringBuilder().use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
+TridentCollaborativeFiltering tcf = new TridentCollaborativeFilteringBuilder()
+    .use(topology)
+    .process(preferenceStream)
+    .updateSimilaritiesOn(triggerStream)
+    .build();
 ```
 
-Note that the preference stream must contain at least the 2 fields ("user" and "item") while the update similarities stream doesn't need any field.
+Note that the preference stream must contain at least the 2 fields ("user" and "item") while the trigger stream doesn't need any field.
 
-Trident-CF provides 2 spouts implementations which can be used to create the update similarities stream : DelayedSimilaritiesUpdateLauncher and PermanentSimilaritiesUpdateLauncher.
+Trident-CF provides 2 spouts implementations which can be used to create the trigger stream : 
+[DelayedSimilaritiesUpdateLauncher](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/builtin/DelayedSimilaritiesUpdateLauncher.java) and 
+[PermanentSimilaritiesUpdateLauncher](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/builtin/PermanentSimilaritiesUpdateLauncher.java).
 
 ## Get item recommendations
 
@@ -42,30 +52,50 @@ Here's the code to process a recommendation query stream to retrieve item recomm
 
 
 ```java
-// recommendations parameters
+// The Trident-CF algorithm
+TridentCollaborativeFiltering tcf = ...;
+
+// Recommendations parameters
 int nbItems = 10;
 int neighborhoodSize = 100;
-
-// Your trident topology
-TridentTopology topology = ...;
-
-// Stream which contain the binary ratings
-Stream preferenceStream = ...;
-
-// Stream which emit an empty tuple when user similarities must be re-build
-Stream updateSimilaritiesStream = ...;
 
 // Stream containing recommendation queries
 Stream recommendationQueryStream = ...;
 
-// Create collaborative filtering topology
-TridentCollaborativeFiltering cf = new TridentCollaborativeFilteringBuilder().use(topology).process(preferenceStream).updateSimilaritiesOn(updateSimilaritiesStream).build();
+// Create a new stream which contains a single field : "recommendedItems" (a List of RecommendedItem).
 Stream recommendationStream = cf.createItemRecommendationStream(recommendationQueryStream, nbItems, neighborhoodSize);
 
 ```
 
-The recommendation query stream must contain a "user" field containing a user id (long).
-The new stream (recommendationStream) contains a single field ("recommendedItems") containing a List of RecommendedItem.
+Note that the recommendation query stream must contain a "user" field containing a user id (long).
 
-# Configure the trident collaborative topology
-TODO
+# Configure the Trident CF topology
+You can configure the Trident-CF by providing a custom [Options](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFiltering.java#Options)
+to the 
+[TridentCollaborativeFilteringBuilder](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFilteringBuilder.java) : 
+
+```java
+// Custom options
+Options options = ...;
+
+// Create collaborative filtering topology
+TridentCollaborativeFiltering tcf = new TridentCollaborativeFilteringBuilder()
+    .use(topology)
+    .with(options)
+    .process(preferenceStream)
+    .updateSimilaritiesOn(triggerStream)
+    .build();
+```
+
+This [Options](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFiltering.java#Options)
+lets you specify others StateFactory implementations and new parallelism configurations.
+
+## Trident-CF states
+
+Trident-CF uses some non-transactional memory states by default however it provides non-transactional redis states.
+You can easily instanciate pre-configured Options with redis states :
+
+```java
+Options options = Options.redis();
+```
+
