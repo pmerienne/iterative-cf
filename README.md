@@ -63,13 +63,13 @@ int neighborhoodSize = 100;
 Stream recommendationQueryStream = ...;
 
 // Create a new stream which contains a single field : "recommendedItems" (a List of RecommendedItem).
-Stream recommendationStream = cf.createItemRecommendationStream(recommendationQueryStream, nbItems, neighborhoodSize);
+Stream recommendationStream = tcf.createItemRecommendationStream(recommendationQueryStream, nbItems, neighborhoodSize);
 
 ```
 
 Note that the recommendation query stream must contain a "user" field containing a user id (long).
 
-# Configure the Trident CF topology
+## Configure the Trident CF topology
 You can configure the Trident-CF by providing a custom [Options](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFiltering.java#Options)
 to the 
 [TridentCollaborativeFilteringBuilder](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFilteringBuilder.java) : 
@@ -90,7 +90,7 @@ TridentCollaborativeFiltering tcf = new TridentCollaborativeFilteringBuilder()
 This [Options](https://github.com/pmerienne/trident-cf/blob/master/src/main/java/com/github/pmerienne/trident/cf/TridentCollaborativeFiltering.java#Options)
 lets you specify others StateFactory implementations and new parallelism configurations.
 
-## Trident-CF states
+### Trident-CF states
 
 Trident-CF uses some non-transactional memory states by default however it provides non-transactional redis states.
 You can easily instanciate pre-configured Options with redis states :
