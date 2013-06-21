@@ -98,4 +98,22 @@ You can easily instanciate pre-configured Options with redis states :
 ```java
 Options options = Options.redis();
 ```
+# Maven
+To use Trident-CF, you'll need the jar on your classpath. Trident-CF is hosted on Clojars (a Maven repository).
+You should either download and include the [last version](https://clojars.org/repo/com/github/pmerienne/trident-cf/0.0.1/trident-cf-0.0.1.jar)
+jar in the classpath for your project or use Maven to include Trident-CF as a development dependency in your pom.xml :
 
+```
+<repository>
+  <id>clojars.org</id>
+  <url>http://clojars.org/repo</url>
+</repository>
+```
+
+```
+<dependency>
+  <groupId>com.github.pmerienne</groupId>
+  <artifactId>trident-cf</artifactId>
+  <version>0.0.1</version>
+</dependency>
+```
