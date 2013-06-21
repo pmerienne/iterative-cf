@@ -17,7 +17,6 @@ package com.github.pmerienne.trident.cf;
 
 import storm.trident.Stream;
 import storm.trident.TridentTopology;
-
 import backtype.storm.Config;
 
 import com.github.pmerienne.trident.cf.TridentCollaborativeFiltering.Options;
@@ -59,13 +58,10 @@ public class TridentCollaborativeFilteringBuilder {
 	public TridentCollaborativeFiltering build() {
 		Preconditions.checkArgument(this.topology != null, "You must provide a TridentTopology");
 		Preconditions.checkArgument(this.preferenceStream != null, "You must provide a stream containing preferences (required fields : 'user','item'))");
+		Preconditions.checkArgument(this.updateSimilaritiesStream != null, "You must provide a stream which trigger the similarity updates (no field is required)");
 
 		TridentCollaborativeFiltering tridentCollaborativeFiltering = new TridentCollaborativeFiltering(this.topology, this.options);
-		tridentCollaborativeFiltering.appendUpdateUserPreferencesTopology(this.preferenceStream);
-
-		if (this.updateSimilaritiesStream != null) {
-			tridentCollaborativeFiltering.appendUpdateUserSimilaritiesTopology(this.updateSimilaritiesStream);
-		}
+		tridentCollaborativeFiltering.appendCollaborativeFilteringTopology(this.preferenceStream, this.updateSimilaritiesStream);
 
 		if (this.config != null) {
 			tridentCollaborativeFiltering.registerKryoSerializers(config);
