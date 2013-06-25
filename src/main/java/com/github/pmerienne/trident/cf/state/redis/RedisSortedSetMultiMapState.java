@@ -72,7 +72,7 @@ public class RedisSortedSetMultiMapState<K, V> extends AbstractRedisState implem
 			this.pool.returnResource(jedis);
 		}
 
-		return result == 1;
+		return result >= 1;
 
 	}
 

@@ -56,7 +56,7 @@ public class RedisMapMultimapState<K1, K2, V> extends AbstractRedisState impleme
 			this.pool.returnResource(jedis);
 		}
 
-		return result == 1;
+		return result >= 1;
 	}
 
 	@SuppressWarnings("unchecked")

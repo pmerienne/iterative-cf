@@ -56,7 +56,7 @@ public class RedisSetState<T> extends AbstractRedisState implements SetState<T> 
 			this.pool.returnResource(jedis);
 		}
 
-		return result == 1;
+		return result >= 1;
 	}
 
 	@Override
@@ -78,7 +78,7 @@ public class RedisSetState<T> extends AbstractRedisState implements SetState<T> 
 			this.pool.returnResource(jedis);
 		}
 
-		return result == 1;
+		return result >= 1;
 	}
 
 	@SuppressWarnings("unchecked")
