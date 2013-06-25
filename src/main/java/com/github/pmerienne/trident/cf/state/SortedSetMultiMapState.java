@@ -19,23 +19,79 @@ import java.util.List;
 
 import storm.trident.state.State;
 
-public interface SortedSetMultiMapState<K, T> extends State {
+/**
+ * A {@link State} which wrap access to a Multimap that cannot hold duplicate
+ * key-value pairs. Adding a key-value pair that's already in the multimap has
+ * no effect. This class is very similar to the {@link SetMultiMapState}. The
+ * difference is that every member is associated with score, that is used in
+ * order to take the sorted set ordered, from the smallest to the greatest
+ * score. While members are unique, scores may be repeated.
+ * 
+ * @author pmerienne
+ * 
+ * @param <K>
+ *            the type of keys
+ * @param <V>
+ *            the type of values
+ */
+public interface SortedSetMultiMapState<K, V> extends State {
 
+	/**
+	 * Returns the numbers of values which are mapped to a given key
+	 * 
+	 * @param key
+	 * @return
+	 */
 	long sizeOf(K key);
 
-	boolean put(K key, ScoredValue<T> value);
+	/**
+	 * Adds the specified value with the specified score to the sorted set
+	 * stored at key. Stores a key-value pair in the multimap. If the specified
+	 * value already exists in the sorted set, the score is updated and the
+	 * element reinserted at the right position to ensure the correct ordering.
+	 * If key does not exist, a new sorted set with the specified value as sole
+	 * members is created, like if the sorted set was empty.
+	 * 
+	 * @param key
+	 *            key to store
+	 * @param value
+	 *            scored value to store
+	 * @return <code>true</code> if this set changed as a result of the call
+	 */
+	boolean put(K key, ScoredValue<V> value);
 
-	List<ScoredValue<T>> getSorted(K key, int count);
+	/**
+	 * Returns the specified range of elements in the sorted set stored at key.
+	 * The elements are considered to be ordered from the highest to the lowest
+	 * score.
+	 * 
+	 * @param key
+	 *            the key whose associated set is used
+	 * @param count
+	 *            the maximum number of scored values returned
+	 * @return
+	 */
+	List<ScoredValue<V>> getSorted(K key, int count);
 
-	double getScore(K key, T value);
+	/**
+	 * Returns the score of value in the sorted set at key. If value does not
+	 * exist in the sorted set, or key does not exist, 0.0 is returned.
+	 * 
+	 * @param key
+	 *            the key whose associated set is used
+	 * @param value
+	 *            the value whose score is searched
+	 * @return
+	 */
+	double getScore(K key, V value);
 
 	@SuppressWarnings("rawtypes")
-	public static class ScoredValue<T> implements Comparable<ScoredValue<T>> {
+	public static class ScoredValue<V> implements Comparable<ScoredValue<V>> {
 
 		private final double score;
-		private final T value;
+		private final V value;
 
-		public ScoredValue(double score, T value) {
+		public ScoredValue(double score, V value) {
 			this.score = score;
 			this.value = value;
 		}
@@ -44,12 +100,12 @@ public interface SortedSetMultiMapState<K, T> extends State {
 			return score;
 		}
 
-		public T getValue() {
+		public V getValue() {
 			return value;
 		}
 
 		@Override
-		public int compareTo(ScoredValue<T> o) {
+		public int compareTo(ScoredValue<V> o) {
 			if (o == null) {
 				return 1;
 			} else {
@@ -92,9 +148,9 @@ public interface SortedSetMultiMapState<K, T> extends State {
 		}
 
 		@SuppressWarnings("unchecked")
-		public static <T> int compare(T k1, T k2) {
+		public static <V> int compare(V k1, V k2) {
 			if (k1 instanceof Comparable<?>) {
-				return ((Comparable<? super T>) k1).compareTo((T) k2);
+				return ((Comparable<? super V>) k1).compareTo((V) k2);
 			} else {
 				return 0;
 			}
