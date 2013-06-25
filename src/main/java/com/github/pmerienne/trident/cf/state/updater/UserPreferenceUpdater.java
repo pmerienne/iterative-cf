@@ -35,10 +35,13 @@ public class UserPreferenceUpdater extends BaseStateUpdater<SetMultiMapState<Lon
 		for (TridentTuple tuple : tuples) {
 			user = tuple.getLong(0);
 			item = tuple.getLong(1);
-			state.put(user, item);
+
+			boolean alreadyExist = !state.put(user, item);
 
 			// For new values stream
-			collector.emit(new Values(user, item));
+			if (!alreadyExist) {
+				collector.emit(new Values(user, item));
+			}
 		}
 
 	}

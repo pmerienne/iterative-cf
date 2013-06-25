@@ -36,10 +36,13 @@ public class PreferredItemUpdater extends BaseStateUpdater<SetMultiMapState<Long
 		for (TridentTuple tuple : tuples) {
 			user = tuple.getLong(0);
 			item = tuple.getLong(1);
-			state.put(item, user);
+			
+			boolean alreadyExist = !state.put(item, user);
 
 			// For new values stream
-			collector.emit(new Values(user, item));
+			if (!alreadyExist) {
+				collector.emit(new Values(user, item));
+			}
 		}
 
 	}
